@@ -136,15 +136,26 @@ export function openExperiment(shell: Shell, id: string): void {
     dock.append(fold({ id: "exp-controls", title: "Experiment controls", icon: "🎛", class: "controls",
       summary: () => `${exp.params!.length} setting${exp.params!.length === 1 ? "" : "s"}` }, params, h("div", { class: "params-foot" }, defaultsBtn)));
   }
-  // the reader's own probes (Probe / Line probe on the toolbar): how many, and a way to remove them
+  // the reader's own probes (Probe / Line probe on the rail): each with a ✕ that removes only that one, and all at once
   const mineNote = h("div", { class: "mine-probes", hidden: true });
+  const removeMine = (id: number) => {
+    sim.undo.begin("Delete probe");
+    // while the experiment keeps the reader's probes, setting a list without any of them would put them all back
+    const keep = sim.keepMine;
+    sim.keepMine = false;
+    sim.removeProbe(id);
+    sim.keepMine = keep;
+    sim.undo.commit();
+  };
   const showMine = () => {
     const mine = sim.probes.filter(q => q.mine);
     mineNote.hidden = mine.length === 0;
     mineNote.replaceChildren(
-      h("span", {}, "Your probes: ", ...mine.flatMap((q, i) => [i ? ", " : "", h("b", { style: `color:${q.color}` }, q.label)]),
-        h("span", { class: "muted" }, " — drag them with Pan")),
-      h("button", { type: "button", class: "link small", onclick: () => sim.clearMine() }, "✕ Remove"));
+      h("span", {}, "Your probes: ", ...mine.flatMap((q, i) => [i ? " " : "",
+        h("span", { class: "mine-probe" }, h("b", { style: `color:${q.color}` }, q.label),
+          h("button", { type: "button", class: "link small", "aria-label": `Remove ${q.label}`, "data-help": `Remove your probe ${q.label}`, onclick: () => removeMine(q.id) }, "✕"))]),
+        h("span", { class: "muted" }, " — drag them with ✋ Select & move")),
+      ...(mine.length > 1 ? [h("button", { type: "button", class: "link small", onclick: () => sim.clearMine() }, "✕ Remove all")] : []));
   };
   sim.changed = [showMine];
   dock.append(mineNote, nav);
