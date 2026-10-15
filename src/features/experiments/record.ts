@@ -9,6 +9,18 @@ export class Recorder {
   set(x: number, y: number): void { this.points.set(x, y); }
   has(x: number): boolean { return this.points.has(x); }
   get size(): number { return this.points.size; }
+  /** The value recorded at x (undefined if there is none). */
+  get(x: number): number | undefined { return this.points.get(x); }
+
+  /**
+   * Records the measurement for setting x once `ready` (the run for it is done), if x has none yet. `measure` may
+   * return null: nothing to record.
+   */
+  capture(x: number, ready: boolean, measure: () => number | null): void {
+    if (!ready || this.points.has(x)) return;
+    const y = measure();
+    if (y !== null) this.points.set(x, y);
+  }
 
   /** The recorded points, sorted by x. */
   list(): [number, number][] { return [...this.points.entries()].sort((a, b) => a[0] - b[0]); }

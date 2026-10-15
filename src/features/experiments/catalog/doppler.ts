@@ -5,9 +5,10 @@
 import { Scene } from "../../../core/scene";
 import { newMotion } from "../../../core/sources";
 import { omegaOfLevel } from "../../../core/physics";
+import { deg, spectralPeak } from "../../../core/math";
 import type { Sim } from "../../../sim/sim";
 import type { Experiment, Values } from "../types";
-import { f2, lam, need, period, pointSource, within } from "../helpers";
+import { f2, lam, look, need, period, pointProbe, pointSource, within } from "../helpers";
 
 const DW = 1600, DH = 800, CY = 400;
 /** Frequency level: a wavelength of about 30 cells, so even squeezed to a quarter (at 0.75x) a wave still spans 7.5. */
@@ -44,19 +45,13 @@ function build(sim: Sim, p: Values): void {
   const src = mode === "circle"
     ? pointSource(CIRCLE.x, CIRCLE.y, LEVEL, { name: "Source", motion: newMotion({ kind: "circle", mach: M, radius: CIRCLE.r, angleDeg: 90 }) })
     : pointSource(mode === "faster" ? SUPER_START : START_X, CY, LEVEL, { name: "Source", motion: newMotion({ kind: "line", mach: M, distance: mode === "faster" ? 0 : TRAVEL }) });
-  sim.load(s, [src], [AHEAD, BEHIND].map(q => ({ kind: "point" as const, x: q.x, y: q.y, x2: q.x, y2: q.y, measurement: "amplitude" as const })));
+  sim.load(s, [src], [AHEAD, BEHIND].map(q => pointProbe(q.x, q.y)));
   sim.annotations.labels.push(
     { x: AHEAD.x, y: AHEAD.y, mark: "👂", text: mode === "circle" ? "listener" : "ahead", color: "#ffd84a" },
     ...(mode === "circle" ? [] : [{ x: BEHIND.x, y: BEHIND.y, mark: "👂", text: "behind", color: "#4ade80" }]));
-  sim.viewMode = "field";
-  // measured: a still point source at this level shows its rings at about 0.8 of full colour at the default 30%
-  sim.brightness.field = 160;
-  sim.brightness.intensity = 160;
-  sim.prepareSpeed = 24;
-  if (mode === "faster") {
-    // stop when the source has crossed most of the picture: the cone is then clear to measure
-    sim.runUntil(Math.round(900 / (M * c)));
-  } else sim.runUntil(runEnd(sim, p));
+  // measured: a still point source at this level shows its rings at about 0.8 of full colour at the default 30%.
+  // Faster than its waves, the run stops when the source has crossed most of the picture: the cone is then clear.
+  look(sim, { view: "field", field: 160, intensity: 160, prepare: 24, runTo: mode === "faster" ? Math.round(900 / (M * c)) : runEnd(sim, p) });
 }
 
 /** Where the moving source is at step t, along its line. */
@@ -81,18 +76,7 @@ function runEnd(sim: Sim, p: Values): number {
 /** The strongest angular frequency in a stretch of a probe's record (a fine search of its spectrum). */
 function peakOmega(h: number[], from: number, to: number, lo: number, hi: number): number {
   if (to - from < 16) return NaN;
-  const power = (w: number) => {
-    let re = 0, im = 0;
-    for (let j = from; j < to; j++) { re += h[j] * Math.cos(w * j); im -= h[j] * Math.sin(w * j); }
-    return re * re + im * im;
-  };
-  let best = lo, bestP = -1;
-  for (let w = lo; w <= hi; w += 0.004 * omega) { const pw = power(w); if (pw > bestP) { bestP = pw; best = w; } }
-  for (let d = 0.002 * omega; d > 1e-6 * omega; d /= 2) {
-    const l = power(best - d), r = power(best + d);
-    if (l > bestP && l >= r) { best -= d; bestP = l; } else if (r > bestP) { best += d; bestP = r; }
-  }
-  return best;
+  return spectralPeak(h, from, to, lo, hi, 0.004 * omega, 1e-6 * omega);
 }
 
 /** The pitch an ear hears (as a multiple of the source's own), once the steady part has passed it; null before. */
@@ -155,6 +139,11 @@ export const doppler: Experiment = {
     "Faster than its own waves, a source drags a cone behind it: sin θ = c / v",
     "For light the squeeze is a colour change: blueshift and redshift, and each photon's momentum changes with it",
   ],
+  readMore: [
+    { page: "how-waves-behave/doppler-effect", label: "The Doppler effect" },
+    { page: "waves-at-work/radar-phased-arrays-5g", label: "Radar, phased arrays and 5G" },
+    { page: "light-and-optics/is-light-a-wave", label: "Is light a wave?" },
+  ],
   params: [{ id: "mach", label: "Speed of the source", min: 0, max: 2, step: 0.05, value: 0.5, format: v => `${v.toFixed(2)}× the wave speed`,
     help: "As a multiple of the speed of the waves. Steps 2 and 4 go up to 0.75× (faster, the squeezed waves ahead get too short for the grid of cells), step 3 at least 1.5×. Each change is a fresh run." }],
   setup(sim, p) { build(sim, p); },
@@ -208,7 +197,7 @@ export const doppler: Experiment = {
         prompt: "Measure the half-angle of the cone (between the source's path and one edge of the V).",
         check(m, p) {
           if (m.angle === null) return need("Use the protractor: corner on the source, one arm back along its path, the other along the edge of the cone.");
-          const M = machOf(p), expect = (Math.asin(1 / M) * 180) / Math.PI;
+          const M = machOf(p), expect = deg(Math.asin(1 / M));
           const r = within(m.angle, expect, 4, "cone half-angle", "°");
           return { ...r, message: `${r.message} (sin θ = c / v = 1 / ${f2(M)}, so θ = ${expect.toFixed(1)}°.)` };
         },

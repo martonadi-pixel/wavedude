@@ -4,7 +4,6 @@
 import { defaultSettings } from "../../engine/engine";
 import { EXPERIMENTS } from ".";
 import { LEVELS, type Level, type Experiment, type Values, type Measured } from "./types";
-import { pulseMarkers } from "./catalog/advanced";
 import { angleDeg } from "../../view/viewport";
 import { h, slider, fold, loadPref, savePref } from "../../components";
 import type { Shell } from "../../app/shell";
@@ -119,7 +118,7 @@ export function openExperiment(shell: Shell, id: string): void {
   sim.prepareSpeed = 0;
   sim.brightnessPct = DEFAULT_BRIGHTNESS_PCT;
   exp.setup(sim, p);
-  shell.setGraph(exp.graph ?? "none", exp.id === "grid-dispersion" ? () => pulseMarkers(sim) : undefined,
+  shell.setGraph(exp.graph ?? "none", exp.markers ? () => exp.markers!(sim) : undefined,
     exp.profileMarkers ? () => exp.profileMarkers!(sim) : undefined);
 
   const progress = h("div", { class: "progress" });
