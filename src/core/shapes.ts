@@ -102,7 +102,8 @@ export function shapeDepth(s: ShapeSpec, x: number, y: number): { depth: number;
     }
     case "slits": {
       if (Math.abs(u) > L || Math.abs(v) > t) return { depth: -Math.max(Math.abs(u) - L, Math.abs(v) - t), max: t };
-      for (const c of slitCentres(s)) if (Math.abs(u - c) < s.width / 2) return { depth: -(s.width / 2 - Math.abs(u - c)), max: t };
+      // half-open, so an opening `width` wide frees exactly `width` cells whether the width is even or odd
+      for (const c of slitCentres(s)) if (u - c >= -s.width / 2 && u - c < s.width / 2) return { depth: -(s.width / 2 - Math.abs(u - c)), max: t };
       return { depth: Math.min(t - Math.abs(v), L - Math.abs(u)), max: t };
     }
   }

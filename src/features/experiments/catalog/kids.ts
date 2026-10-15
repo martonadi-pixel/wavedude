@@ -11,7 +11,6 @@ export const splash: Experiment = {
   id: "splash",
   title: "Splash! Making waves",
   level: "kids",
-  movable: true,
   minutes: 10,
   summary: "Tap the water, watch the ripples, and find the calm lanes where two sets of waves cancel out.",
   goals: ["Waves spread out in circles", "Faster tapping makes waves closer together", "Two waves can add up — or cancel each other"],

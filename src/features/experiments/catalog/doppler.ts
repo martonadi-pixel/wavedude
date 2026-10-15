@@ -128,11 +128,11 @@ const pct = (v: number) => `${v >= 1 ? "+" : "−"}${Math.abs((v - 1) * 100).toF
 function pitchTable(sim: Sim, p: Values): string {
   const M = machOf(p);
   const rows = [
-    { name: "ahead 👂", i: 0, ear: AHEAD, theory: 1 / (1 - M), color: "#ffd84a" },
-    { name: "behind 👂", i: 1, ear: BEHIND, theory: 1 / (1 + M), color: "#4ade80" },
+    { name: "ahead 👂", i: 0, ear: AHEAD, theory: 1 / (1 - M), cls: "p-1" },
+    { name: "behind 👂", i: 1, ear: BEHIND, theory: 1 / (1 + M), cls: "p-2" },
   ].map(r => {
     const got = heard(sim, r.i, r.ear, M);
-    return `<tr><td style="color:${r.color}">${r.name}</td><td><b>${got === null ? "…" : `${f2(got)}×`}</b>${got === null ? "" : ` (${pct(got)})`}</td><td>${f2(r.theory)}×</td></tr>`;
+    return `<tr><td class="${r.cls}">${r.name}</td><td><b>${got === null ? "…" : `${f2(got)}×`}</b>${got === null ? "" : ` (${pct(got)})`}</td><td>${f2(r.theory)}×</td></tr>`;
   });
   const lamAhead = lam(LEVEL) * (1 - M), lamBehind = lam(LEVEL) * (1 + M);
   const capped = mode === "moving" && p.mach > MAX_SUB ? ` (the slider says ${f2(p.mach)}×: this step stops at ${f2(MAX_SUB)}×, where the squeezed waves are still long enough for the grid)` : "";

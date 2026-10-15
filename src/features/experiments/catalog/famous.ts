@@ -3,12 +3,12 @@
 // Each geometry was checked in the engine before it was written down (see the comments for the measured numbers).
 // GPL-3.0-or-later.
 
-import { Scene, BARRIER, glass } from "../../../core/scene";
+import { Scene } from "../../../core/scene";
 import { newSource, elementsOf } from "../../../core/sources";
 import { groupVelocity, omegaOfLevel, wavelength } from "../../../core/physics";
 import type { Experiment, Values } from "../types";
 import type { Sim } from "../../../sim/sim";
-import { f1, f2, lam, lineSource, need, period, within } from "../helpers";
+import { box, f1, f2, lam, line, lineSource, need, period, within } from "../helpers";
 import { Recorder } from "../record";
 
 function mean(a: ArrayLike<number> | undefined): number {
@@ -136,8 +136,7 @@ export const arago: Experiment = {
       } },
   ],
   setup(sim, p) {
-    const s = new Scene(AW, AH);
-    s.rect(A_OBST_X, A_CY - p.half, 4, 2 * p.half, BARRIER);
+    const s = new Scene(AW, AH).add(box(A_OBST_X, A_CY - p.half, 4, 2 * p.half, "wall", { name: "Obstacle" }));
     // a very wide laser beam: a clean plane wave that only goes one way
     sim.load(s, [newSource({ name: "Light", kind: "laser", x: 150, y: A_CY, level: A_LEVEL, beamWidth: 2500 })]);
     sim.annotations.labels.push({ x: A_OBST_X + 10, y: A_CY - p.half - 10, text: "obstacle" });
@@ -181,7 +180,7 @@ export const arago: Experiment = {
     {
       title: "Find the bright line",
       html: `<p>Look along the middle of the shadow, between the dashed lines: a <b>bright line runs down its centre</b>, with darker bands on either side.</p>
-             <p>Two probes sit on the screen: <b style="color:#ffd84a">P1</b> exactly on the centre line, <b style="color:#4ade80">P2</b> a little closer to the shadow's edge. The graphs show what they measure over time, and the light all along the screen (L1, with P1, P2 and the shadow's edges marked).</p>
+             <p>Two probes sit on the screen: <b class="p-1">P1</b> exactly on the centre line, <b class="p-2">P2</b> a little closer to the shadow's edge. The graphs show what they measure over time, and the light all along the screen (L1, with P1, P2 and the shadow's edges marked).</p>
              <p>The picture is zoomed onto the shadow; press <b>Fit</b> to see the whole set-up.</p>
              <p>Move the screen with the <b>Screen distance</b> slider; P2 moves along, staying beside the centre line. <b>Close</b> behind the obstacle the light bending round the edges has not met in the middle yet, so the shadow is brightest near its edges. At <b>medium</b> distances the bright centre line stands out most. <b>Far</b> away the dark bands fade and light fills the shadow.</p>`,
       predict: {
@@ -194,8 +193,8 @@ export const arago: Experiment = {
         const q = aragoProbes(sim, p), s = aragoNow.scan;
         if (!q || !s) return "Waiting for the light to fill the picture…";
         const ratio = q.p1 / Math.max(1e-12, q.p2);
-        let txt = `<span style="color:#ffd84a">P1</span> (centre): <b>${q.p1.toExponential(2)}</b> · ` +
-          `<span style="color:#4ade80">P2</span> (${s.onBand ? "dark band" : "halfway to the edge"}): <b>${q.p2.toExponential(2)}</b><br>`;
+        let txt = `<span class="p-1">P1</span> (centre): <b>${q.p1.toExponential(2)}</b> · ` +
+          `<span class="p-2">P2</span> (${s.onBand ? "dark band" : "halfway to the edge"}): <b>${q.p2.toExponential(2)}</b><br>`;
         if (s.close)
           txt += `<b>Close behind the obstacle:</b> ${s.onBand ? `the centre is already ${times(ratio)} brighter than the dark band beside it, but ` : ""}` +
             `the brightest light in the shadow is near its edges (${s.edge.toFixed(1)}× the centre). The waves bending round the two edges have not met in the middle yet — move the screen further back.`;
@@ -226,9 +225,10 @@ const michelsonRec = new Recorder();
 
 function michelsonScene(sim: Sim, shift: number): void {
   const s = new Scene(MW, MH);
-  s.segment(MC - 90, MC + 90, MC + 90, MC - 90, 3, glass(2.5));              // beam splitter at 45°
-  s.rect(900 + shift, MC - 120, 40, 240, { n: 10 });                         // mirror 1 (moves)
-  s.rect(MC - 120, 140, 240, 40, { n: 10 });                                  // mirror 2
+  s.add(
+    line(MC - 90, MC + 90, MC + 90, MC - 90, 3, "glass", { n: 2.5, name: "Beam splitter" }),    // at 45°
+    box(900 + shift, MC - 120, 40, 240, "glass", { n: 10, name: "Mirror 1" }),                // moves
+    box(MC - 120, 140, 240, 40, "glass", { n: 10, name: "Mirror 2" }));
   sim.load(s, [lineSource(160, MC - 70, 160, MC + 70, M_LEVEL, { name: "Light" })],
     [{ kind: "line", x: MC - 60, y: 860, x2: MC + 60, y2: 860, measurement: "intensity" }]);
   sim.annotations.labels.push(
@@ -451,8 +451,7 @@ export const thinFilm: Experiment = {
   params: [{ id: "t", label: "Film thickness", min: 1, max: 30, step: 1, value: 2, unit: " cells", help: `Wavelength inside the film: ${lam(F_LEVEL, F_N).toFixed(1)} cells. Each setting is a fresh run.` }],
   open() { filmRec.clear(); },
   setup(sim, p) {
-    const s = new Scene(FW, FH);
-    s.rect(F_FILM_X, 0, p.t, FH, glass(F_N));
+    const s = new Scene(FW, FH).add(box(F_FILM_X, 0, p.t, FH, "glass", { n: F_N, name: "Soap film" }));
     const per = period(F_LEVEL);
     sim.load(s, [lineSource(300, 0, 300, FH - 1, F_LEVEL, { name: "Light", mode: "pulsed", shape: "gaussian", onCycles: 20, offCycles: 1_000_000, detach: true, detachAfterSteps: Math.round(20 * per + 10) })],
       [{ kind: "point", x: 420, y: FH / 2, x2: 0, y2: 0, measurement: "amplitude" }]);
@@ -515,7 +514,7 @@ export const thinFilm: Experiment = {
              <p>Anti-reflection coatings on glasses and camera lenses use the same trick the other way round: a quarter-wave layer whose two reflections cancel.</p>`,
       readout: (_sim, p) => {
         const strip = Array.from({ length: 61 }, (_, i) => `<rect x="${i * 5}" y="0" width="5.5" height="26" fill="${filmColour(i * 0.5)}"/>`).join("");
-        return `<div style="display:flex;align-items:center;gap:12px"><span style="width:44px;height:44px;border-radius:50%;background:${filmColour(p.t)};box-shadow:0 0 0 2px #0006"></span>` +
+        return `<div class="film-row"><span class="film-dot" style="--c:${filmColour(p.t)}"></span>` +
           `<span>A ${p.t}-cell film reflects this colour.</span></div>` +
           `<svg viewBox="0 0 305 40" class="rec-chart"><g>${strip}</g><line x1="${p.t * 10}" x2="${p.t * 10}" y1="0" y2="30" stroke="#fff" stroke-width="1.5"/>` +
           `<text x="0" y="38" font-size="9" fill="currentColor">0</text><text x="290" y="38" font-size="9" fill="currentColor">30 cells</text></svg>`;
@@ -624,9 +623,9 @@ function comptonTable(sim: Sim, p: Values): string {
   if (!q) return `${head}<br>Waiting for the scattered waves to reach the probes…`;
   const cell = (r: number) => (Number.isFinite(r) ? r.toFixed(3) : "—");
   const real = (r: number) => (!Number.isFinite(r) ? "—" : light.lamPm >= 1000 ? `${Math.round((light.lamPm * r) / 1000)} nm` : `${f2(light.lamPm * r)} pm`);
-  return `${head}<table class="ctab" style="font-size:13px;margin-top:6px;border-collapse:collapse;width:100%">` +
-    `<tr style="text-align:left"><th>probe</th><th>angle</th><th>measured λ′ ÷ λ</th><th>Compton's law</th><th>λ′</th></tr>` +
-    q.map((r, i) => `<tr><td style="color:${["#ffd84a", "#4ade80", "#f472b6"][i]}">P${i + 1}</td><td>${Math.round(r.angle)}°</td><td><b>${cell(r.ratio)}</b></td><td>${cell(r.predicted)}</td><td>${real(r.ratio)}</td></tr>`).join("") +
+  return `${head}<table class="ro-table wide">` +
+    `<tr><th>probe</th><th>angle</th><th>measured λ′ ÷ λ</th><th>Compton's law</th><th>λ′</th></tr>` +
+    q.map((r, i) => `<tr><td class="p-${i + 1}">P${i + 1}</td><td>${Math.round(r.angle)}°</td><td><b>${cell(r.ratio)}</b></td><td>${cell(r.predicted)}</td><td>${real(r.ratio)}</td></tr>`).join("") +
     `</table>`;
 }
 
@@ -646,7 +645,7 @@ function comptonSvg(lamIn: number, thetaDeg: number): string {
   const p0 = 18, p1 = Math.min(60, p0 * (1 + (10 * c.dl) / lamIn));
   const th = rad(thetaDeg), ph = rad(c.phi);
   const fmtL = (l: number) => (l >= 1000 ? `${f1(l / 1000)} nm` : `${f2(l)} pm`);
-  return `<svg viewBox="0 0 340 220" class="rec-chart" style="max-width:420px">
+  return `<svg viewBox="0 0 340 220" class="rec-chart wide">
     ${wave(15, oy, 0, 140, p0, "#60a5fa")}
     <text x="15" y="${oy - 16}" font-size="11" fill="#60a5fa">photon in, λ = ${fmtL(lamIn)}</text>
     <circle cx="${ox}" cy="${oy}" r="6" fill="#fbbf24"/>
@@ -709,7 +708,7 @@ export const comptonExp: Experiment = {
     {
       title: "Light meets an electron",
       html: `<p>A short burst of light (from the left) sweeps over an electron. The electron is shaken by the wave and sends out a new wave in all directions: it <b>scatters</b> the light.</p>
-             <p>Three probes measure the scattered wave: <b style="color:#ffd84a">P1</b> to the side (90°), <b style="color:#4ade80">P2</b> half-way back (135°) and <b style="color:#f472b6">P3</b> straight back (180°). The graph shows what they pick up: first the passing burst, later the scattered wave.</p>`,
+             <p>Three probes measure the scattered wave: <b class="p-1">P1</b> to the side (90°), <b class="p-2">P2</b> half-way back (135°) and <b class="p-3">P3</b> straight back (180°). The graph shows what they pick up: first the passing burst, later the scattered wave.</p>`,
       predict: {
         question: "With ordinary visible light, how does the scattered wavelength compare with the incoming light?",
         options: ["The same in every direction", "Longer to the side and backwards", "Shorter to the side and backwards"],
@@ -739,7 +738,7 @@ export const comptonExp: Experiment = {
         const lamIn = lightOf(p).lamPm, c = compton(lamIn, p.theta);
         const L = (l: number) => (l >= 1000 ? `${f1(l / 1000)} nm` : `${f2(l)} pm`);
         return comptonSvg(lamIn, p.theta) +
-          `<table style="font-size:13px;margin-top:6px;border-collapse:collapse"><tr><td>wavelength in / out</td><td>${L(lamIn)} → <b>${L(c.lamOut)}</b> (Δλ = ${f2(c.dl)} pm)</td></tr>` +
+          `<table class="ro-table"><tr><td>wavelength in / out</td><td>${L(lamIn)} → <b>${L(c.lamOut)}</b> (Δλ = ${f2(c.dl)} pm)</td></tr>` +
           `<tr><td>photon energy in / out</td><td>${c.E >= 1 ? `${f2(c.E)} → ${f2(c.E2)} keV` : `${(1000 * c.E).toFixed(3)} → ${(1000 * c.E2).toFixed(3)} eV`}</td></tr>` +
           `<tr><td>electron recoil</td><td>${c.ke * 1000 >= 1 ? `${(c.ke * 1000).toFixed(0)} eV` : `${(c.ke * 1e6).toExponential(1)} meV`} at φ = ${f1(c.phi)}°</td></tr></table>`;
       },

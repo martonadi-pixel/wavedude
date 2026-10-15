@@ -101,3 +101,7 @@
 .exp-dock .nav button { min-width: 96px; padding: 7px 14px; }
 .nav-pos { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .small { font-size: 12px; }
+
+/* the reader moved part of the experiment */
+.layout-note { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--warn); border-radius: var(--radius); background: rgba(251, 191, 36, .1); font-size: 13px; }
+.layout-note button { flex: none; }

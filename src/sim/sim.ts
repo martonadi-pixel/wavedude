@@ -701,9 +701,6 @@ export class Sim {
 
   private buildOverlay(): Overlay { return buildOverlay(this); }
 
-  /** Sources and probes can be dragged with the Pan tool (all pages now; kept for pages that ask). */
-  grabbable = true;
-
   /** The probe under the cell (a point probe, a line probe's end or its line), or -1. */
   probeNear(cell: Pt): number {
     const hit = this.selector.hit(cell, "pointProbe");

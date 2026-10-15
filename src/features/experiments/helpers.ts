@@ -3,6 +3,7 @@
 
 import { c2OfIndex, omegaOfLevel, wavelength } from "../../core/physics";
 import { newSource, type SourceSpec } from "../../core/sources";
+import { newShape, setShapeEnds, type ShapeMaterial, type ShapeSpec } from "../../core/shapes";
 import type { CheckResult } from "./types";
 
 /** Wavelength in cells of a source with this level in a medium of index n (the grid's own dispersion relation). */
@@ -42,3 +43,27 @@ export function within(measured: number, expected: number, tolerance: number, wh
 }
 
 export const need = (message: string): CheckResult => ({ ok: false, message });
+
+// ------------------------------------------------------------------------------------------ objects of a scene
+// Walls, glass and slits as objects (scene.add(...)): the reader can select and move them, and the experiment can
+// build them again in their original place. They cover exactly the cells the old drawing calls did.
+
+/** A filled box from its top-left corner and size (like Scene.rect). */
+export function box(x: number, y: number, w: number, h: number, material: ShapeMaterial, o: { n?: number; name?: string } = {}): ShapeSpec {
+  return newShape("box", { material, n: o.n ?? 1.5, filled: true, x: x + w / 2, y: y + h / 2, length: w, width: h, name: o.name ?? "" });
+}
+
+/** A straight line `thickness` wide from (x0, y0) to (x1, y1) (like Scene.segment). */
+export function line(x0: number, y0: number, x1: number, y1: number, thickness: number, material: ShapeMaterial, o: { n?: number; name?: string } = {}): ShapeSpec {
+  const s = newShape("line", { material, n: o.n ?? 1.5, thickness, name: o.name ?? "" });
+  setShapeEnds(s, { x: x0, y: y0 }, { x: x1, y: y1 });
+  return s;
+}
+
+/**
+ * An upright wall from x to x + thickness, `length` tall and centred on cy, with `count` openings `width` wide and
+ * `spacing` apart (centre to centre), centred on cy.
+ */
+export function slitWall(x: number, cy: number, length: number, thickness: number, count: number, width: number, spacing: number, name = ""): ShapeSpec {
+  return newShape("slits", { angleDeg: 90, x: x + thickness / 2, y: cy, length, thickness, count, width, spacing, name });
+}

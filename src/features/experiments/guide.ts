@@ -67,7 +67,6 @@ export function renderExperimentList(shell: Shell): void {
   // a calm demo behind the list
   shell.sim.owner = "experiment";
   Object.assign(shell.sim.engine.settings, defaultSettings());
-  shell.sim.grabbable = false;
   shell.sim.keepMine = false;
   const first = EXPERIMENTS[0];
   const p = defaults(first);
@@ -99,7 +98,6 @@ export function openExperiment(shell: Shell, id: string): void {
   sim.owner = "experiment";
   // experiments are written for the default stencil, frequency scale and intensity filter, whatever the Sandbox set
   Object.assign(sim.engine.settings, defaultSettings());
-  sim.grabbable = !!exp.movable;
   // probes the reader places stay through slider changes, until they leave the experiment
   sim.keepMine = false;
   sim.clearMine();
@@ -298,10 +296,17 @@ export function openExperiment(shell: Shell, id: string): void {
     if (a) a.textContent = m.angle === null ? "—" : `${m.angle.toFixed(1)}°`;
   };
 
+  // the reader moved or deleted part of the experiment: its numbers assume the original layout
+  const layoutNote = h("div", { class: "layout-note", role: "status", hidden: true },
+    h("span", {}, "You moved or deleted part of the experiment. Its readouts and checks were worked out for the original layout."),
+    h("button", { type: "button", class: "small", onclick: () => restart() }, "↺ Original layout"));
+  dock.prepend(layoutNote);
+
   // live readouts of the current step
   let lastReadout = 0;
   const stopReadout = sim.onFrame(() => {
     if (!location.hash.startsWith(`#/experiment/${exp.id}`)) { stopReadout(); return; }
+    if (layoutNote.hidden === sim.layoutChanged) layoutNote.hidden = !sim.layoutChanged;
     const st = exp.steps[stepIndex], el = document.getElementById("step-readout");
     if (!st.readout || !el || rebuildPending || performance.now() - lastReadout < 250) return;
     lastReadout = performance.now();

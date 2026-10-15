@@ -2,11 +2,12 @@
 // how well the damping edge absorbs (research).
 // GPL-3.0-or-later.
 
-import { Scene, BARRIER, glass } from "../../../core/scene";
+import { Scene } from "../../../core/scene";
+import { newOptic } from "../../../core/optics";
 import { groupVelocity, omegaOfLevel } from "../../../core/physics";
 import type { Experiment, Values } from "../types";
 import type { Sim } from "../../../sim/sim";
-import { f1, f2, lam, lineSource, need, period, pointSource, within } from "../helpers";
+import { box, f1, f2, lam, lineSource, need, period, pointSource, slitWall, within } from "../helpers";
 
 // ------------------------------------------------------------------------------------------ kids: echoes and mirrors
 
@@ -14,8 +15,7 @@ const EW = 1000, EH = 600;
 let echoScene: "wall" | "dish" | "" = "";
 
 function wallScene(sim: Sim): void {
-  const s = new Scene(EW, EH);
-  s.rect(720, 120, 10, 360, BARRIER);
+  const s = new Scene(EW, EH).add(box(720, 120, 10, 360, "wall", { name: "Wall" }));
   sim.load(s, [pointSource(260, 300, 55, { name: "Clap", mode: "pulsed", shape: "gaussian", onCycles: 3, offCycles: 100000 })],
     [{ kind: "point", x: 300, y: 300, x2: 0, y2: 0, measurement: "amplitude" }]);
   sim.annotations.labels.push({ x: 740, y: 110, text: "wall" }, { x: 310, y: 290, text: "ear 👂", color: "#ffd84a" });
@@ -28,16 +28,10 @@ function wallScene(sim: Sim): void {
 
 const DISH_X = 880, FOCUS = 160;
 function dishScene(sim: Sim): void {
-  const s = new Scene(EW, EH);
-  // a parabola opening to the left: x = DISH_X - (y - c)^2 / (4 f), focus at (DISH_X - f, c)
-  const c = EH / 2;
-  let prev: [number, number] | null = null;
-  for (let y = c - 230; y <= c + 230; y += 6) {
-    const x = DISH_X - ((y - c) ** 2) / (4 * FOCUS);
-    if (prev) s.segment(prev[0], prev[1], x, y, 8, BARRIER);
-    prev = [x, y];
-  }
-  sim.load(s, [lineSource(150, 70, 150, EH - 70, 55, { name: "Waves" })]);
+  const s = new Scene(EW, EH), c = EH / 2;
+  // a parabolic mirror opening to the left: x = DISH_X - (y - c)^2 / (4 f), focus at (DISH_X - f, c)
+  const dish = newOptic("parabolic", { name: "Dish", x: DISH_X, y: c, size: 460, radius: FOCUS, thickness: 8 });
+  sim.load(s, [lineSource(150, 70, 150, EH - 70, 55, { name: "Waves" })], [], [dish]);
   sim.annotations.labels.push({ x: DISH_X - FOCUS, y: c, mark: "★", text: "focus", color: "#ffd84a" });
   sim.viewMode = "field";
   sim.brightness.field = 6;
@@ -49,7 +43,6 @@ export const echoes: Experiment = {
   id: "echoes",
   title: "Echoes and mirrors",
   level: "kids",
-  movable: true,
   minutes: 10,
   summary: "Clap and hear the echo, then catch waves with a dish-shaped mirror like a satellite dish.",
   goals: ["Waves bounce off walls: that is an echo", "The time until the echo tells how far away the wall is", "A curved mirror collects waves in one spot"],
@@ -114,8 +107,7 @@ export const singleSlit: Experiment = {
   params: [{ id: "a", label: "Width of the gap a", min: 36, max: 90, step: 2, value: 50, unit: " cells", help: `λ = ${lam(SS_LEVEL).toFixed(1)} cells at this frequency.` }],
   setup(sim, p) {
     const s = new Scene(SW, SH), cy = SH / 2;
-    s.rect(SWALL, 0, 8, SH, BARRIER);
-    s.rect(SWALL, Math.round(cy - p.a / 2), 8, p.a, { n: 1, absorb: 0 });
+    s.add(slitWall(SWALL, cy, SH, 8, 1, p.a, 0, "Slit"));
     sim.load(s, [lineSource(150, 0, 150, SH - 1, SS_LEVEL)], [{ kind: "line", x: SSCREEN, y: 10, x2: SSCREEN, y2: SH - 10, measurement: "intensity" }]);
     sim.annotations.arrows.push({ x0: SWALL + 8, y0: cy, x1: SSCREEN + 40, y1: cy, color: "#ffffff88", dashed: true });
     sim.annotations.labels.push({ x: SSCREEN + 8, y: 24, text: "screen", color: "#ffd84a" });
@@ -188,8 +180,7 @@ export const tir: Experiment = {
   goals: ["Leaving glass, a beam bends away from the normal", "Beyond the critical angle all of it is reflected", "sin θc = n₂ / n₁"],
   params: [{ id: "theta", label: "Angle of the beam θ", min: 20, max: 70, step: 1, value: 30, unit: "°", help: "Angle between the beam and the normal (the dashed line)." }],
   setup(sim, p) {
-    const s = new Scene(TW, TH);
-    s.rect(0, T_SURF, TW, TH - T_SURF, glass(T_N));
+    const s = new Scene(TW, TH).add(box(0, T_SURF, TW, TH - T_SURF, "glass", { n: T_N, name: "Glass" }));
     const t = (p.theta * Math.PI) / 180, D = 320, hl = 100;
     const cx = T_HIT.x - D * Math.sin(t), cy = T_HIT.y + D * Math.cos(t);
     const ux = Math.cos(t), uy = Math.sin(t);

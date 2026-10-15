@@ -85,8 +85,6 @@ export interface Experiment {
   steps: Step[];
   /** Pages of the "How it works" library that explain this experiment ("category/page"). */
   readMore?: { page: string; label: string }[];
-  /** Sources and probes may be dragged around (only where no measurement depends on their position). */
-  movable?: boolean;
   /** Colour schemes this experiment shows best in (scheme files); the reader's own choice comes back on leaving. */
   colors?: { field?: string; intensity?: string };
   /** Vertical marker lines on the line-probe graph (x = cell along the first line probe). */

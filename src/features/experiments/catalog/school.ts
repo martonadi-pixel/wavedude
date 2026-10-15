@@ -1,10 +1,10 @@
 // Wave Dude 2D web - experiments for secondary school.
 // GPL-3.0-or-later.
 
-import { Scene, BARRIER, glass } from "../../../core/scene";
+import { Scene } from "../../../core/scene";
 import { omegaOfLevel } from "../../../core/physics";
 import type { Experiment, Values } from "../types";
-import { f1, f2, f3, lam, lineSource, need, within } from "../helpers";
+import { box, f1, f2, f3, lam, lineSource, need, slitWall, within } from "../helpers";
 
 // ------------------------------------------------------------------------------------------ wavelength
 
@@ -110,8 +110,7 @@ export const refraction: Experiment = {
     { id: "n", label: "Refractive index of the glass", min: 1.2, max: 2.2, step: 0.05, value: 1.5, help: "How many times slower the wave travels in the glass." },
   ],
   setup(sim, p) {
-    const scene = new Scene(W2, H2);
-    scene.rect(0, Y_SURFACE, W2, H2 - Y_SURFACE, glass(p.n));
+    const scene = new Scene(W2, H2).add(box(0, Y_SURFACE, W2, H2 - Y_SURFACE, "glass", { n: p.n, name: "Glass" }));
     const t = (p.theta * Math.PI) / 180, D = 230, hl = 110;
     const cx = HIT.x - D * Math.sin(t), cy = HIT.y - D * Math.cos(t);
     const ux = Math.cos(t), uy = -Math.sin(t);
@@ -208,8 +207,7 @@ export const doubleSlit: Experiment = {
   setup(sim, p) {
     const s = new Scene(W3, H3);
     const cy = H3 / 2;
-    s.rect(WALL_X, 0, WALL_T, H3, BARRIER);
-    for (const y of [cy - p.d / 2, cy + p.d / 2]) s.rect(WALL_X, Math.round(y - p.w / 2), WALL_T, p.w, { n: 1, absorb: 0 });
+    s.add(slitWall(WALL_X, cy, H3, WALL_T, 2, p.w, p.d, "Double slit"));
     sim.load(s, [lineSource(150, 0, 150, H3 - 1, DS_LEVEL)], [
       { kind: "line", x: SCREEN_X, y: 70, x2: SCREEN_X, y2: H3 - 70, measurement: "intensity" },
     ]);

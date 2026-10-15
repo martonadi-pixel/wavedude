@@ -63,3 +63,18 @@
 .meter.big { display: block; max-width: 320px; height: 14px; margin: .3em 0 1.2em; overflow: visible; }
 .meter-mark.at { left: var(--at); top: -3px; bottom: -3px; }
 .meter-label { position: absolute; left: var(--at); top: 15px; transform: translateX(-50%); font-size: 10px; color: var(--pink); }
+
+/* experiment readouts: probe colours (P1, P2, P3 in the order of the graph), big numbers, truth tables */
+.p-1 { color: var(--yellow); }
+.p-2 { color: var(--green); }
+.p-3 { color: var(--pink); }
+.ro-big { font-size: 20px; margin: .2em 0; }
+.ro-table.wide { width: 100%; }
+.rec-chart.wide { max-width: 420px; }
+.tt { border-collapse: collapse; min-width: 220px; margin: .4em 0; }
+.tt th, .tt td { text-align: center; padding: 2px 8px; }
+.tt .num { text-align: right; opacity: .75; }
+.tt .unk { opacity: .5; }
+.tt tr.here { background: rgba(251, 191, 36, .2); }
+.film-row { display: flex; align-items: center; gap: 12px; }
+.film-dot { width: 44px; height: 44px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px rgba(0, 0, 0, .4); flex: none; }

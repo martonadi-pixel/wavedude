@@ -70,13 +70,13 @@ function truthTable(key: string, inputs: string[], outputs: { id: string; label:
     const ins = Array.from({ length: n }, (_, i) => (k >> (n - 1 - i)) & 1);
     const m = measured.get(`${key}:${ins.join("")}`), here = ins.join("") === now.join("");
     const want = expect(ins);
-    const cells = outputs.map((_, j) => m ? `<td style="text-align:center">${m.bits[j] === want[j] ? "" : "⚠ "}${m.bits[j]}</td>` : `<td style="text-align:center;opacity:.5">?</td>`);
-    rows.push(`<tr style="${here ? "background:#fbbf2433" : ""}">${ins.map(b => `<td style="text-align:center">${b}</td>`).join("")}${cells.join("")}` +
-      `<td style="text-align:right;opacity:.75">${m ? m.value.toFixed(2) : ""}</td></tr>`);
+    const cells = outputs.map((_, j) => m ? `<td>${m.bits[j] === want[j] ? "" : "⚠ "}${m.bits[j]}</td>` : `<td class="unk">?</td>`);
+    rows.push(`<tr${here ? ` class="here"` : ""}>${ins.map(b => `<td>${b}</td>`).join("")}${cells.join("")}` +
+      `<td class="num">${m ? m.value.toFixed(2) : ""}</td></tr>`);
   }
-  const head = `<tr>${inputs.map(i => `<th>${i}</th>`).join("")}${outputs.map(o => `<th>${o.label}</th>`).join("")}<th style="text-align:right">light</th></tr>`;
+  const head = `<tr>${inputs.map(i => `<th>${i}</th>`).join("")}${outputs.map(o => `<th>${o.label}</th>`).join("")}<th class="num">light</th></tr>`;
   const done = [...Array(1 << n).keys()].every(k => measured.has(`${key}:${Array.from({ length: n }, (_, i) => (k >> (n - 1 - i)) & 1).join("")}`));
-  return `<table style="border-collapse:collapse;min-width:220px;margin:.4em 0">${head}${rows.join("")}</table>` +
+  return `<table class="tt">${head}${rows.join("")}</table>` +
     `<div class="muted small">${settled ? "✓ measured (this row is filled in)." : "⏳ the light is on its way… the row is filled in when the result has settled."}` +
     `${done ? " <b>Table complete!</b>" : " Try every combination of the inputs."}</div>`;
 }
@@ -191,7 +191,7 @@ export const waveLogic: Experiment = {
         if (!c) return "";
         const a = c.get("A").bit, b = c.get("B").bit, s = c.det("sum").bit, k = c.det("carry").bit;
         const ok = c.settled(GATE_SETTLE);
-        return `<div style="font-size:20px;margin:.2em 0">${a} + ${b} = <b>${ok ? `${k}${s}` : "…"}</b>` +
+        return `<div class="ro-big">${a} + ${b} = <b>${ok ? `${k}${s}` : "…"}</b>` +
           `${ok ? ` <span class="muted small">(binary ${k}${s} = ${2 * k + s})</span>` : ""}</div>` + leds(c, ["carry", "sum"]) +
           truthTable("half", ["A", "B"], [{ id: "sum", label: "sum" }, { id: "carry", label: "carry" }], ([x, y]) => [x ^ y, x & y]);
       },
@@ -359,7 +359,7 @@ export const waveMemory: Experiment = {
         if (!c || !c.detectors.some(d => d.id === "cout")) return "";
         const a = c.get("A").bit, b = c.get("B").bit, ci = c.get("C").bit, s = c.det("sum").bit, k = c.det("cout").bit;
         const ok = c.settled(ADDER_SETTLE);
-        return `<div style="font-size:20px;margin:.2em 0">${a} + ${b} + ${ci} = <b>${ok ? `${k}${s}` : "…"}</b>` +
+        return `<div class="ro-big">${a} + ${b} + ${ci} = <b>${ok ? `${k}${s}` : "…"}</b>` +
           `${ok ? ` <span class="muted small">(binary ${k}${s} = ${2 * k + s})</span>` : ""}</div>` + leds(c, ["cout", "sum"]) +
           truthTable("full", ["A", "B", "C"], [{ id: "sum", label: "sum" }, { id: "cout", label: "carry" }], ([x, y, z]) => [x ^ y ^ z, (x + y + z) >> 1], ADDER_SETTLE);
       },
@@ -431,7 +431,7 @@ export const waveMemory: Experiment = {
         if (!c || !regBits.length || !c.switches.some(s => s.id === regBits[0].s)) return "";
         const { value, clean } = registerValue(regBits);
         const busy = pulsesActive(c).length > 0 || (lastWrite !== null && sim.time - lastWrite.at < PRESS + LATCH_SETTLE);
-        return `<div style="font-size:20px;margin:.2em 0">${[3, 2, 1, 0].map(i => regBits[i].q.bit).join("")} = <b>${value}</b></div>` +
+        return `<div class="ro-big">${[3, 2, 1, 0].map(i => regBits[i].q.bit).join("")} = <b>${value}</b></div>` +
           [3, 2, 1, 0].map(i => ledHtml(regBits[i].q.bit === 1, `b${i}`)).join("") +
           `<div class="muted small">${busy ? "writing… (the set/reset light is on its way)" : lastWrite ? `holding ${lastWrite.value} with every input off${clean && value === lastWrite.value ? " ✓" : ""}` : "every latch starts at 0"}</div>`;
       },
