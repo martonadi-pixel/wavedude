@@ -30,9 +30,6 @@ export const logicTemplate = {
 /** Steps a hand-built circuit fast-forwards after a switch flips (light in a guide needs ~1100 steps per 400 cells). */
 export const HAND_SETTLE = 1500;
 
-/** The part picked last (its row opens in the panel). */
-export let logicSelected: string | null = null;
-export function selectPart(id: string | null): void { logicSelected = id; }
 
 let guideDraft: { a: Pt; b: Pt } | null = null;
 /** A transistor being placed: its detector is chosen, the emitter comes next. */
@@ -41,6 +38,14 @@ let trDraft: Detector | null = null;
 let addTo: string | null = null;
 export function addEmitterTo(id: string | null): void { addTo = id; }
 export function addingTo(): string | null { return addTo; }
+
+/** Cancels a transistor half placed or an extra emitter waiting for its click (Esc). True if there was one. */
+export function cancelLogicDraft(): boolean {
+  const had = !!(trDraft || addTo);
+  trDraft = null;
+  addTo = null;
+  return had;
+}
 
 /** The sim's circuit, made (and attached) on first use. */
 export function ensureCircuit(sim: Sim): Circuit {
@@ -138,7 +143,7 @@ export function logicTool(sim: Sim, tool: LogicTool, phase: "down" | "move" | "u
       const c = ensureCircuit(sim);
       const target = addTo ? c.switches.find(s => s.id === addTo) : undefined;
       const hit = target ? undefined : c.switchAt(cell, r);
-      if (hit) { c.toggle(hit.id); logicSelected = hit.id; sim.notify(); return; }
+      if (hit) { c.toggle(hit.id); sim.select({ kind: "switch", id: hit.id }); sim.notify(); return; }
       const p = onGuide(sim.scene, x, y, logicTemplate.emitter);
       if (target) {
         const src = makeEmitter(`${target.label} (${target.sources.length + 1})`, p.x, p.y, p.width, logicTemplate.emitter);
@@ -146,13 +151,13 @@ export function logicTool(sim: Sim, tool: LogicTool, phase: "down" | "move" | "u
         target.sources.push(src);
         sim.sources.push(src);
         addTo = null;
-        logicSelected = target.id;
+        sim.selection = { kind: "switch", id: target.id };
       } else {
         const label = letter(c), id = c.freeId("in");
         const src = makeEmitter(label, p.x, p.y, p.width, logicTemplate.emitter);
         sim.sources.push(src);
         c.addSwitch(id, label, [src], { x: p.x + 8, y: Math.min(src.y, src.y2) - 6 });
-        logicSelected = id;
+        sim.selection = { kind: "switch", id };
       }
       sim.refreshSources();
       c.drawLabels();
@@ -163,7 +168,7 @@ export function logicTool(sim: Sim, tool: LogicTool, phase: "down" | "move" | "u
       if (phase !== "down" || !inside) return;
       const c = ensureCircuit(sim);
       const near = c.detectorNear(cell, 2);
-      if (near) { logicSelected = near.id; sim.notify(); return; }
+      if (near) { sim.select({ kind: "detector", id: near.id }); return; }
       addDetectorAt(c, sim, x, y);
       sim.notify();
       return;
@@ -174,7 +179,7 @@ export function logicTool(sim: Sim, tool: LogicTool, phase: "down" | "move" | "u
       if (!trDraft || !c.detectors.includes(trDraft)) {
         // first click: where it looks (an existing detector, or a new one here)
         trDraft = c.detectorNear(cell, 2) ?? addDetectorAt(c, sim, x, y, "gate");
-        logicSelected = trDraft.id;
+        sim.selection = { kind: "detector", id: trDraft.id };
         sim.notify();
         return;
       }
@@ -189,7 +194,7 @@ export function logicTool(sim: Sim, tool: LogicTool, phase: "down" | "move" | "u
       const t = c.addTransistor(id, id, det, [src], invert, (det.bit === 1) !== invert);
       t.wires = true;
       t.at = { x: p.x + 8, y: Math.max(src.y, src.y2) + 14 };
-      logicSelected = id;
+      sim.selection = { kind: "transistor", id };
       sim.refreshSources();
       c.drawLabels();
       sim.notify();

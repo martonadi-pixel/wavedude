@@ -1,0 +1,10 @@
+/* Wave Dude 2D web - all stylesheets, in order (Vite bundles them into one file). GPL-3.0-or-later. */
+@import "./tokens.css";
+@import "./base.css";
+@import "./layout.css";
+@import "./controls.css";
+@import "./components.css";
+@import "./pages/experiments.css";
+@import "./pages/sandbox.css";
+@import "./pages/learn.css";
+@import "./responsive.css";

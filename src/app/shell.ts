@@ -10,10 +10,16 @@ export type GraphMarker = { x: number; color: string; label?: string };
 export interface Shell {
   sim: Sim;
   panel: HTMLElement;
-  /** Tools offered on the toolbar besides pan (the measuring tools are always there). */
+  /** Tools offered on the tool rail besides select and the measuring tools (always there). The first is selected. */
   setTools(tools: Tool[]): void;
-  /** Selects a toolbar tool (adding it to the toolbar if the page did not offer it). */
+  /** Selects a tool (adding it to the rail if the page did not offer it). */
   selectTool(tool: Tool): void;
+  /** The page's own settings in the bar above the picture, for the active tool (null: none besides painting). */
+  setToolOptions(render: ((tool: Tool) => Node | Node[] | null) | null): void;
+  /** Redraws the bar above the picture (after a setting it shows changed elsewhere). */
+  refreshToolOptions(): void;
+  /** The page's own controls in the header (the Sandbox's project), or null. */
+  setHeader(node: Node | null): void;
   /** Markers: vertical lines on the probe graph (x = step) and on the line-probe graph (x = cell along the line). */
   setGraph(mode: GraphMode, markers?: () => GraphMarker[], profileMarkers?: () => GraphMarker[]): void;
   /** Show or hide the simulation (the Learn pages use the whole width). */

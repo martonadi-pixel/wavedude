@@ -1,0 +1,38 @@
+/* Wave Dude 2D web - colours and sizes used everywhere. GPL-3.0-or-later. */
+:root {
+  /* surfaces, darkest to lightest: stage, side panel, input wells, cards, raised items, hover */
+  --bg: #0b0d12;
+  --panel: #10131a;
+  --input: #0b0e14;
+  --card: #1a1f2a;
+  --card-head: #1f2532;
+  --raised: #242b3a;
+  --panel2: #232a38;
+  --panel3: #2c3446;
+  --sel: #1c2b48;
+  --sel-body: #162036;
+  --line: #2d3445;
+  --line2: #434c62;
+  --fg: #e8ebf2;
+  --fg2: #cdd2de;
+  --muted: #9ba4b8;
+  --accent: #4f8cff;
+  --accent-soft: rgba(79, 140, 255, .14);
+  --accent-fg: #fff;
+  --ok: #34d399;
+  --no: #fb7185;
+  --warn: #fbbf24;
+  --yellow: #fbbf24;
+  --green: #4ade80;
+  --pink: #f472b6;
+  --cyan: #9fe3ff;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --kids: #f59e0b;
+  --school: #34d399;
+  --university: #60a5fa;
+  --research: #c084fc;
+  --ring: 0 0 0 3px rgba(79, 140, 255, .35);
+  --pad: 16px;
+  color-scheme: dark;
+}

@@ -1,0 +1,51 @@
+/* Wave Dude 2D web - form controls: buttons, fields, sliders, switches, segmented buttons. GPL-3.0-or-later. */
+/* ------------------------------------------------------------------ form controls */
+.field { display: block; margin: 10px 0; }
+.field .lbl { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--fg2); margin-bottom: 4px; min-height: 18px; }
+.field .lbl .t { min-width: 0; }
+.field .val { margin-left: auto; color: var(--fg); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.field input[type=range], .field select, .field input[type=file] { width: 100%; }
+.field select, .field input[type=number], input[type=text], textarea {
+  width: 100%; min-height: 32px; background: var(--input); border: 1px solid var(--line2); border-radius: 6px; padding: 5px 8px; font: inherit; color: inherit;
+}
+textarea { resize: vertical; }
+.field select { cursor: pointer; }
+.field.num input { width: 100%; }
+.field select:hover, .field input[type=number]:hover, input[type=text]:hover, textarea:hover, input[type=search]:hover { border-color: var(--line2); }
+.field select:focus, .field input[type=number]:focus, input[type=text]:focus, textarea:focus, input[type=search]:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+.field input[type=file] { font-size: 12.5px; color: var(--muted); }
+.field input[type=file]::file-selector-button { margin-right: 8px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); color: var(--fg); cursor: pointer; }
+.check { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 13px; color: var(--fg2); cursor: pointer; }
+.check input[type=checkbox] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); flex: none; cursor: pointer; }
+.check.dim { opacity: .5; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; align-items: end; }
+.grid2 > .field, .grid2 > .check { min-width: 0; }
+.sec { border-top: 1px solid var(--line); margin-top: 8px; }
+input[type=range] { accent-color: var(--accent); }
+.q { display: inline-grid; place-items: center; width: 17px; height: 17px; padding: 0; border-radius: 50%; font-size: 11px; font-weight: 700; color: var(--muted); background: transparent; border: 1px solid var(--line2); cursor: help; flex: none; }
+.q:hover:not(:disabled) { color: var(--fg); border-color: var(--muted); }
+.tip { position: fixed; z-index: 100; max-width: 300px; padding: 8px 10px; background: #0b0d12; border: 1px solid var(--line2); border-radius: 6px; font-size: 12.5px; color: var(--fg); box-shadow: 0 6px 24px rgba(0,0,0,.5); pointer-events: none; }
+
+/* sliders of the side panel: a thin track filled up to the thumb (--p is set by slider()) */
+#panel input[type=range] { -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 20px; margin: 0; background: transparent; cursor: pointer; }
+#panel input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--accent) var(--p, 0%), var(--line2) var(--p, 0%)); }
+#panel input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: #fff; border: 3px solid var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.6); transition: transform .1s; }
+#panel input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.12); }
+#panel input[type=range]:focus-visible { outline: none; }
+#panel input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: var(--ring); }
+#panel input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line2); }
+#panel input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
+#panel input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 3px solid var(--accent); }
+
+/* an on/off switch (a styled checkbox) */
+input.switch { -webkit-appearance: none; appearance: none; position: relative; flex: none; width: 30px; height: 18px; margin: 0; border-radius: 9px; background: var(--line2); cursor: pointer; transition: background .15s; }
+input.switch::before { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #c9cfdb; transition: transform .15s, background .15s; }
+input.switch:checked { background: var(--accent); }
+input.switch:checked::before { transform: translateX(12px); background: #fff; }
+
+/* a radio group as one row of buttons */
+.segctl { display: flex; gap: 2px; padding: 2px; background: var(--input); border: 1px solid var(--line2); border-radius: 8px; }
+.segctl button { flex: 1; min-width: 0; padding: 4px 8px; background: none; border: none; border-radius: 6px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.segctl button:hover:not(:disabled) { color: var(--fg); background: var(--panel3); }
+.segctl button.on { background: var(--accent); color: #fff; font-weight: 600; }
+.segctl.small button { padding: 2px 6px; font-size: 12px; }

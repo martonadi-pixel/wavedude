@@ -1,0 +1,25 @@
+/* Wave Dude 2D web - small screens (last, so it wins). GPL-3.0-or-later. */
+/* small screens: panel above the simulation */
+@media (max-width: 860px) {
+  .panel-resizer { display: none; }
+  #app { grid-template-columns: 1fr; grid-template-rows: 48px minmax(0, 42vh) 1fr; }
+  #app.panel-hidden { grid-template-columns: 1fr; grid-template-rows: 48px 0 1fr; }
+  #panel { grid-column: 1; grid-row: 2; border-right: none; border-bottom: 1px solid var(--line); --pad: 12px; }
+  #stage, #article { grid-column: 1; grid-row: 3; }
+  header { gap: 8px; padding: 0 10px; overflow-x: auto; }
+  .side-toggle { margin: 0; transform: rotate(90deg); }
+  header .about { display: none; }
+  /* the rail becomes a row under the picture, with fingers-sized buttons */
+  #work { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+  .rail { order: 2; flex-direction: row; overflow-x: auto; border-right: none; border-top: 1px solid var(--line); padding: 4px; }
+  .rail-btn { width: auto; min-width: 56px; min-height: 48px; }
+  .rail-flyout { left: 4px; top: auto; bottom: 64px; }
+  .tool-options .field input[type=range] { width: 90px; }
+  #article { padding: 16px; }
+  /* the panel is short here: the controls scroll with the text, only the step buttons stay at the bottom */
+  #panel:has(> .exp-dock) { display: block; }
+  .exp-dock { display: contents; }
+  .exp-dock .fold.box { margin: 12px 0 0; }
+  .exp-dock .params { max-height: none; }
+  .exp-dock .nav { position: sticky; bottom: calc(-1 * var(--pad)); z-index: 4; margin: 12px calc(-1 * var(--pad)) calc(-1 * var(--pad)); padding: 8px var(--pad) var(--pad); background: var(--panel); border-top: 1px solid var(--line); box-shadow: 0 -12px 24px -12px rgba(0, 0, 0, .6); }
+}

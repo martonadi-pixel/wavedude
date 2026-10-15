@@ -74,6 +74,7 @@ export interface LogicJSON {
   transistors: { id: string; label: string; input: string; invert: boolean; on: boolean; sources: number[]; wires: boolean; at: { x: number; y: number } | null }[];
 }
 
+// canvas colours of the labels (the same as the --green and --yellow tokens of the stylesheet)
 const LED_ON = "#4ade80", LED_OFF = "#94a3b8", SWITCH_ON = "#fbbf24", SWITCH_OFF = "#94a3b8";
 type Box = { x: number; y: number; w: number; h: number; color: string };
 
@@ -422,21 +423,16 @@ export class Circuit {
   private boxes: Box[] = [];
 }
 
-/** HTML for an LED in a readout. */
+/** HTML for an LED in a readout (styled by the .led class, as in the Sandbox's inspector). */
 export function ledHtml(on: boolean, label: string): string {
-  return `<span class="wl-led ${on ? "on" : ""}" style="display:inline-flex;align-items:center;gap:.35em;margin-right:.9em">` +
-    `<span aria-hidden="true" style="width:.9em;height:.9em;border-radius:50%;display:inline-block;` +
-    `background:${on ? LED_ON : "transparent"};border:2px solid ${on ? LED_ON : LED_OFF};${on ? `box-shadow:0 0 8px ${LED_ON}` : ""}"></span>` +
-    `<b>${label}</b>&nbsp;${on ? 1 : 0}</span>`;
+  return `<span class="led-tag"><span class="led${on ? " on" : ""}" aria-hidden="true"></span><b>${label}</b>&nbsp;${on ? 1 : 0}</span>`;
 }
 
-/** A horizontal bar for a reading in units, with marks at the thresholds (HTML). */
+/** A horizontal bar for a reading in units, with marks at the thresholds (HTML; positions as CSS variables). */
 export function meterHtml(value: number, max: number, marks: { at: number; label: string }[]): string {
-  const pct = (v: number) => Math.max(0, Math.min(100, (v / max) * 100));
-  return `<div style="position:relative;height:14px;border:1px solid #fff4;border-radius:4px;margin:.3em 0 1.2em;max-width:320px">` +
-    `<div style="position:absolute;left:0;top:0;bottom:0;width:${pct(value).toFixed(1)}%;background:#fbbf24;border-radius:3px"></div>` +
-    marks.map(m => `<div style="position:absolute;left:${pct(m.at).toFixed(1)}%;top:-3px;bottom:-3px;border-left:2px dashed #f472b6"></div>` +
-      `<div style="position:absolute;left:${pct(m.at).toFixed(1)}%;top:15px;font-size:10px;transform:translateX(-50%);color:#f472b6">${m.label}</div>`).join("") +
+  const pct = (v: number) => `${Math.max(0, Math.min(100, (v / max) * 100)).toFixed(1)}%`;
+  return `<div class="meter big" style="--v:${pct(value)}"><span class="meter-fill"></span>` +
+    marks.map(m => `<span class="meter-mark at" style="--at:${pct(m.at)}"></span><span class="meter-label" style="--at:${pct(m.at)}">${m.label}</span>`).join("") +
     `</div>`;
 }
 

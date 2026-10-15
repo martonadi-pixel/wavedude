@@ -67,6 +67,8 @@ export class Viewport {
   private pointers = new Map<number, Pt>();
   private drag: { mode: "pan" | "tool" | "pinch" | "grab"; start: Pt; startCell: Pt; offX: number; offY: number; dist?: number; scale?: number; mid?: Pt } | null = null;
   private protractorStage = 0;
+  /** 1 while the protractor's first arm is drawn and its second is still to come. */
+  get protractorStep(): number { return this.protractorStage; }
   private userMoved = false;
 
   constructor(private host: HTMLElement, private engine: WaveEngine) {

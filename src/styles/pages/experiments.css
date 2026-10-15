@@ -1,0 +1,103 @@
+/* Wave Dude 2D web - the experiment list and the step-by-step guide. GPL-3.0-or-later. */
+/* ------------------------------------------------------------------ experiment list */
+.lvl-kids { --lvl: var(--kids); }
+.lvl-school { --lvl: var(--school); }
+.lvl-university { --lvl: var(--university); }
+.lvl-research { --lvl: var(--research); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.chip { border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+.chip.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.lvl-chips .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 10px; }
+.lvl-chips .chip.lvl-all { padding-left: 12px; }
+.chip .ldot { width: 8px; height: 8px; border-radius: 50%; background: var(--lvl); }
+.chip.on .ldot { background: rgba(0, 0, 0, .55); }
+.chip .n { min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--panel3); color: var(--muted); font-size: 11px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+.chip.on .n { background: rgba(0, 0, 0, .14); color: inherit; }
+#panel .lvl-head { display: flex; align-items: center; gap: 8px; margin: 18px 0 2px; text-transform: none; letter-spacing: 0; }
+#panel .lvl-head small { font-weight: 400; font-size: 12.5px; }
+.badge { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; color: #111; background: var(--muted); }
+.badge.lvl-kids { background: var(--kids); }
+.badge.lvl-school { background: var(--school); }
+.badge.lvl-university { background: var(--university); }
+.badge.lvl-research { background: var(--research); }
+.badge.depth { background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
+.cards { display: grid; gap: 8px; }
+.card { display: grid; gap: 3px; text-align: left; padding: 12px; border-radius: 10px; }
+.card b { font-size: 15px; }
+.card .meta { font-size: 12px; color: var(--muted); }
+.card:hover { background: #222736; }
+.exp-card { gap: 5px; padding: 11px 12px 12px 14px; background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--lvl, var(--line)); }
+.exp-card:hover:not(:disabled) { background: var(--panel3); border-color: var(--line2); border-left-color: var(--lvl, var(--line2)); }
+.exp-card .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.exp-card b { line-height: 1.3; }
+.exp-card .meta { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.exp-card .summary { font-size: 13px; color: var(--fg2); line-height: 1.45; }
+.done-mark { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgba(52, 211, 153, .16); color: var(--ok); font-size: 12px; font-weight: 800; flex: none; }
+
+/* ------------------------------------------------------------------ experiment guide */
+#panel:has(> .exp-dock) { display: flex; flex-direction: column; }
+#panel:has(> .exp-dock) > * { flex-shrink: 0; }
+.exp-page { flex: 1 0 auto; }
+.back { background: none; border: none; color: var(--muted); padding: 2px 6px 2px 0; margin-bottom: 8px; font-size: 13px; }
+.back:hover:not(:disabled) { color: var(--fg); }
+.exp-meta { display: flex; align-items: center; gap: 10px; }
+.exp-head h2 { margin: 8px 0 4px !important; font-size: 21px !important; }
+.exp-head > p { margin: 0 0 8px; font-size: 13.5px; }
+.goals { margin: 8px 0 0; font-size: 13px; }
+.goals summary { display: flex; align-items: center; gap: 8px; width: fit-content; cursor: pointer; color: var(--fg2); font-weight: 600; list-style: none; border-radius: 4px; }
+.goals summary::-webkit-details-marker { display: none; }
+.goals summary::before { content: ""; width: 6px; height: 6px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; }
+.goals[open] summary::before { transform: rotate(45deg); }
+.goals summary:hover { color: var(--fg); }
+.goals ul { margin: 6px 0; padding-left: 20px; color: var(--fg2); }
+.readmore { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.6; }
+.readmore a { color: var(--accent); }
+.progress { margin: 16px 0 8px; }
+.step-no { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 4px; }
+.step-no b { color: var(--fg); }
+.dots { display: flex; gap: 4px; }
+.dot { position: relative; flex: 1; height: 16px; padding: 0; background: none; border: none; border-radius: 3px; }
+.dot::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 6px; border-radius: 3px; background: var(--line2); transition: background .15s; }
+.dot.done::before { background: #3b5590; }
+.dot.on::before { background: var(--accent); }
+.dot:hover:not(:disabled)::before { background: #5577c0; }
+.step { padding: 12px 14px 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+#panel .step h3 { font-size: 17px; text-transform: none; letter-spacing: 0; color: var(--fg); margin: 0 0 4px; line-height: 1.3; }
+.prose p { margin: 8px 0; }
+.prose ol, .prose ul { padding-left: 22px; }
+.prose kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font-size: 12px; }
+.formula { font-family: "Cambria Math", "STIX Two Math", Georgia, serif; font-size: 16px; text-align: center; background: var(--panel2); border-radius: 6px; padding: 8px; }
+.aside { font-size: 12.5px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; }
+.predict, .task { margin: 12px 0; padding: 12px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); }
+.step .predict { background: rgba(251, 191, 36, .06); border-color: rgba(251, 191, 36, .32); }
+.step .task { background: rgba(79, 140, 255, .07); border-color: rgba(79, 140, 255, .35); }
+.q-title { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+.q-ic { font-size: 16px; line-height: 1.3; }
+.opt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin: 6px 0; padding: 7px 10px; background: var(--panel); }
+.opt:hover:not(:disabled) { background: var(--panel3); }
+.opt-k { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--panel3); color: var(--fg2); font-size: 12px; font-weight: 700; flex: none; }
+.opt.right { border-color: var(--ok); background: rgba(52, 211, 153, .15); }
+.opt.right .opt-k { background: var(--ok); color: #0b1a12; }
+.opt.wrong { border-color: var(--no); background: rgba(251, 113, 133, .15); }
+.opt.wrong .opt-k { background: var(--no); color: #2a0a10; }
+.opt.dim { opacity: .55; }
+.explain { margin: 10px 0 0; padding: 8px 10px; border-radius: 6px; }
+.explain.ok { background: rgba(52, 211, 153, .12); border-left: 3px solid var(--ok); }
+.explain.no { background: rgba(251, 113, 133, .10); border-left: 3px solid var(--no); }
+.readout { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; margin-bottom: 6px; color: var(--muted); }
+.readout b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.task .field.num input { max-width: 160px; display: block; }
+.task .primary { margin-top: 6px; }
+.nav { display: flex; justify-content: space-between; gap: 8px; margin: 16px 0; }
+/* the controls and the step buttons stay at the bottom of the panel */
+.exp-dock { position: sticky; bottom: calc(-1 * var(--pad)); z-index: 4; margin: 14px calc(-1 * var(--pad)) calc(-1 * var(--pad)); padding: 10px var(--pad) var(--pad); background: var(--panel); border-top: 1px solid var(--line); box-shadow: 0 -12px 24px -12px rgba(0, 0, 0, .6); }
+.exp-dock .fold.box { margin: 0 0 10px; }
+.exp-dock .fold.box > .fold-b { padding-top: 0; }
+.exp-dock .params { max-height: min(34vh, 320px); overflow-y: auto; margin: 0 -12px; padding: 0 12px; scrollbar-width: thin; }
+.params-foot { display: flex; justify-content: flex-end; margin-top: -2px; }
+.mine-probes { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; padding: 6px 10px; margin-bottom: 8px; border-radius: 8px; background: var(--card); border: 1px solid var(--line, rgba(255,255,255,.08)); }
+.mine-probes[hidden] { display: none; }
+.exp-dock .nav { align-items: center; margin: 0; }
+.exp-dock .nav button { min-width: 96px; padding: 7px 14px; }
+.nav-pos { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.small { font-size: 12px; }

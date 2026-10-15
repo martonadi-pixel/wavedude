@@ -7,3 +7,6 @@ export { help, slider, select, check, numberInput, segmented, textField, xyField
 export { fold, setFold, refreshSummaries, filterFolds } from "./fold";
 export { installPanelToggle, installPanelResizer } from "./chrome";
 export { installHelp } from "./tooltip";
+export { tabs, type TabSpec } from "./tabs";
+export { showMenu, closeMenu, menuButton, showPopover, type MenuItem } from "./menu";
+export { download } from "./download";
