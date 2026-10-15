@@ -8,8 +8,10 @@ An interactive 2D wave simulator that runs in the browser (WebGL2, nothing to in
 
 This project is a port of other people's work to the web:
 
-- **Wave Dude 2D** by JJM Vleggaar ([Huygens Optics](https://www.patreon.com/c/huygens_optics)): the original simulator for Windows (VB.NET, OpenCL), released under GPL-3.0. This project aims to bring its code, its ideas and its experiments to the browser, so anyone can use it without installing anything.
-- **[WaveSimulator2D](https://github.com/0x23/WaveSimulator2D)** by 0x23: the Python/CuPy wave simulator that the core of Wave Dude 2D (the wave step, the scene rules, the field and intensity pictures) is based on.
+**[WaveSimulator2D](https://github.com/0x23/WaveSimulator2D)** (Python) → **Wave Dude 2D** (Windows) → **this project** (browser)
+
+- **Original repo: [WaveSimulator2D](https://github.com/0x23/WaveSimulator2D)** by 0x23. A fast 2D wave simulator in Python that runs on the GPU (CuPy). The wave step, the scene rules (a scene is an image whose colours set the glass, the walls and the sources, like [this lens and double slit](https://github.com/0x23/WaveSimulator2D/blob/main/example_data/scene_lens_doubleslit.png)) and the field and intensity pictures all start here.
+- **Wave Dude 2D** by JJM Vleggaar ([Huygens Optics](https://www.patreon.com/c/huygens_optics)). Built on WaveSimulator2D as a Windows app (VB.NET, OpenCL) with a full interface, probes, many kinds of sources and video export, released under GPL-3.0. This project aims to bring its code, its ideas and its experiments to the browser, so anyone can use it without installing anything.
 - The colour schemes come from Wave Dude 2D, which sampled most of them from [matplotlib](https://matplotlib.org/) and [seaborn](https://seaborn.pydata.org/) colour maps and two from WaveSimulator2D.
 - Video export uses [Mediabunny](https://mediabunny.dev) (MPL-2.0).
 
