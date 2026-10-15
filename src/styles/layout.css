@@ -36,6 +36,9 @@ small { color: var(--muted); }
 
 #stage { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; min-width: 0; min-height: 0; }
 #work { display: grid; grid-template-columns: auto minmax(0, 1fr); min-height: 0; }
+/* fixed cells, so the picture keeps its place when the rail is put away (3D view) */
+#work > .rail { grid-column: 1; grid-row: 1; }
+#work > #view { grid-column: 2; grid-row: 1; }
 /* fixed rows, so a hidden bar (no tool settings, no graphs) does not move the others into the stretching row */
 #tool-options { grid-row: 1; }
 #work { grid-row: 2; }
