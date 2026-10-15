@@ -1,0 +1,26 @@
+# Wave Dude 2D web
+#
+#   docker compose up -d --build                     # the site on http://localhost:8090 (WAVE_DUDE_PORT in .env changes it)
+#   docker compose --profile tunnel up -d --build    # plus a Cloudflare tunnel (needs CLOUDFLARE_TUNNEL_TOKEN in .env)
+#
+# In the Cloudflare dashboard (Zero Trust > Networks > Tunnels > your tunnel > Public hostname) point your domain at
+#   http://wave-dude:8080
+services:
+  wave-dude:
+    build: .
+    image: wave-dude-web:latest
+    restart: unless-stopped
+    # only reachable from this machine; the tunnel reaches it over the compose network
+    ports:
+      - "127.0.0.1:${WAVE_DUDE_PORT:-8090}:8080"
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      # from .env; only needed when the tunnel profile is started
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - wave-dude

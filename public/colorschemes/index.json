@@ -1,0 +1,140 @@
+[
+ {
+  "file": "Blue_to_yellow_GNU.json",
+  "name": "Blue_to_yellow_GNU",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "Bright_rainbow.json",
+  "name": "Bright_rainbow",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "Copper.json",
+  "name": "Copper",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "Default_Field.json",
+  "name": "Default_Field",
+  "type": "field",
+  "n": 255
+ },
+ {
+  "file": "Default_Intensity.json",
+  "name": "Default_Intensity",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "Flare_inv.json",
+  "name": "Flare_inv",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "Gray_scales.json",
+  "name": "Gray_scales",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "Gray_scales_inv.json",
+  "name": "Gray_scales_inv",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "Green_blue.json",
+  "name": "Green_blue",
+  "type": "field",
+  "n": 255
+ },
+ {
+  "file": "Green_pink.json",
+  "name": "Green_pink",
+  "type": "field",
+  "n": 255
+ },
+ {
+  "file": "Greens.json",
+  "name": "Greens",
+  "type": "field",
+  "n": 255
+ },
+ {
+  "file": "Hot_orange.json",
+  "name": "Hot_orange",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "Ice_and_fire.json",
+  "name": "Ice_and_fire",
+  "type": "field",
+  "n": 255
+ },
+ {
+  "file": "Orange_hot.json",
+  "name": "Orange_hot",
+  "type": "field",
+  "n": 255
+ },
+ {
+  "file": "Orange_symmetry.json",
+  "name": "Orange_symmetry",
+  "type": "field",
+  "n": 255
+ },
+ {
+  "file": "Purple_rain.json",
+  "name": "Purple_rain",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "Simply_red.json",
+  "name": "Simply_red",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "Turky_brown.json",
+  "name": "Turky_brown",
+  "type": "field",
+  "n": 255
+ },
+ {
+  "file": "Yellow_purple.json",
+  "name": "Yellow_purple",
+  "type": "field",
+  "n": 255
+ },
+ {
+  "file": "inferno.json",
+  "name": "inferno",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "magma.json",
+  "name": "magma",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "plasma.json",
+  "name": "plasma",
+  "type": "intensity",
+  "n": 255
+ },
+ {
+  "file": "rainbow.json",
+  "name": "rainbow",
+  "type": "intensity",
+  "n": 255
+ }
+]
