@@ -767,7 +767,7 @@ gl.drawArrays(gl.TRIANGLES, 0, 3);</code></pre>
         {
           level: "university",
           html: `
-<p>A complete, minimal experiment, as a file in <code>src/features/experiments/catalog/</code> (types from <code>../types.ts</code>, helpers from <code>../helpers.ts</code>):</p>
+<p>A complete, minimal experiment, as a file in <code>src/features/experiments/catalog/</code> named after its id (<code>my-echo.ts</code>; types from <code>../types.ts</code>, helpers from <code>../helpers.ts</code>):</p>
 <pre><code>import { Scene, BARRIER } from "../../../core/scene";
 import type { Experiment } from "../types";
 import { lam, need, pointSource, within } from "../helpers";
@@ -827,7 +827,8 @@ export const myEcho: Experiment = {
 <tr><td><code>src/circuits/</code></td><td>computing with waves: switches, detectors, transistors, ready-made circuits</td></tr>
 <tr><td><code>src/project/</code></td><td>Windows-compatible projects; zip reader/writer</td></tr>
 <tr><td><code>src/components/</code>, <code>src/app/</code></td><td>reusable UI pieces; the app shell</td></tr>
-<tr><td><code>src/features/</code></td><td>the pages: experiments (one catalog of guided experiments), sandbox, learn (this library), colours</td></tr>
+<tr><td><code>src/features/</code></td><td>the pages: experiments (one file per guided experiment in <code>experiments/catalog/</code>), sandbox, learn (this library), colours</td></tr>
+<tr><td><code>scripts/</code>, <code>tests/e2e/</code></td><td>the import-cycle check (part of <code>npm run check</code>); browser tests that drive the built site (<code>npm run e2e</code>)</td></tr>
 <tr><td><code>public/colorschemes/</code></td><td>the Windows colour schemes, unchanged</td></tr>
 </table>
 <p><code>npm install</code>, then <code>npm run dev</code> (Vite development server with hot reload), <code>npm run build</code> (runs <code>tsc --noEmit</code> under <code>strict</code>, <code>noUnusedLocals</code> and <code>noUnusedParameters</code>, then builds a static site in <code>dist/</code>) and <code>npm run preview</code>. The site needs an HTTP server (not <code>file://</code>). <code>docker compose up -d --build</code> builds it in a <code>node:22-alpine</code> stage and serves it from an unprivileged nginx image on port 8080, published on 127.0.0.1:8090, with a <code>/healthz</code> endpoint. In the browser console, <code>waveDude</code> is the running simulation, e.g. <code>waveDude.engine.step(1000)</code>.</p>

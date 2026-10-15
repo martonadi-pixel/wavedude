@@ -8,6 +8,11 @@ describe("experiments", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it("live in catalog/, one file each, named after their id", () => {
+    const files = Object.keys(import.meta.glob("./catalog/*.ts"));
+    for (const e of EXPERIMENTS) expect(files, e.id).toContain(`./catalog/${e.id}.ts`);
+  });
+
   it("start every slider inside its range", () => {
     for (const e of EXPERIMENTS) for (const p of e.params ?? []) {
       expect(p.value, `${e.id}.${p.id}`).toBeGreaterThanOrEqual(p.min);

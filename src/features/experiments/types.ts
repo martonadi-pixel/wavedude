@@ -87,6 +87,8 @@ export interface Experiment {
   readMore?: { page: string; label: string }[];
   /** Colour schemes this experiment shows best in (scheme files); the reader's own choice comes back on leaving. */
   colors?: { field?: string; intensity?: string };
+  /** Vertical marker lines on the point-probe graph (x = step). */
+  markers?: (sim: Sim) => { x: number; color: string; label?: string }[];
   /** Vertical marker lines on the line-probe graph (x = cell along the first line probe). */
   profileMarkers?: (sim: Sim) => { x: number; color: string; label?: string }[];
   /** Graph shown under the simulation while the experiment is open. */

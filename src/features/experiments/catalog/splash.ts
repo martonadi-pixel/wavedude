@@ -1,11 +1,12 @@
-// Wave Dude 2D web - experiments for kids.
+// Wave Dude 2D web - "Splash! Making waves" (kids): ripples from a tapping finger, and the calm lanes where two sets
+// of waves cancel.
 // GPL-3.0-or-later.
 
 import { Scene } from "../../../core/scene";
-import type { Experiment } from "../types";
-import { pointSource } from "../helpers";
 import { omegaOfLevel } from "../../../core/physics";
 import type { Sim } from "../../../sim/sim";
+import type { Experiment, Values } from "../types";
+import { look, pointSource } from "../helpers";
 
 export const splash: Experiment = {
   id: "splash",
@@ -14,6 +15,10 @@ export const splash: Experiment = {
   minutes: 10,
   summary: "Tap the water, watch the ripples, and find the calm lanes where two sets of waves cancel out.",
   goals: ["Waves spread out in circles", "Faster tapping makes waves closer together", "Two waves can add up — or cancel each other"],
+  readMore: [
+    { page: "waves-around-us/what-is-a-wave", label: "What is a wave?" },
+    { page: "how-waves-behave/interference-and-superposition", label: "Interference and superposition" },
+  ],
   params: [
     {
       id: "speed", label: "How fast the finger taps", min: 5, max: 110, step: 1, value: 30,
@@ -22,13 +27,9 @@ export const splash: Experiment = {
     },
   ],
   setup(sim, p) {
-    const scene = new Scene(900, 560);
-    sim.load(scene, [pointSource(260, 280, p.speed, { name: "Finger" })]);
-    sim.viewMode = "field";
-    sim.brightness.field = 160;
-    sim.brightness.intensity = 160;
+    sim.load(new Scene(900, 560), [pointSource(260, 280, p.speed, { name: "Finger" })]);
     // slow enough to follow every ring with your eyes
-    sim.stepsPerFrame = 1;
+    look(sim, { view: "field", field: 160, intensity: 160, speed: 1 });
   },
   steps: [
     {
@@ -94,7 +95,7 @@ export const splash: Experiment = {
 };
 
 /** "The finger taps about N times per second", from the source's frequency and how fast the simulation runs now. */
-function taps(sim: Sim, p: Record<string, number>): string {
+function taps(sim: Sim, p: Values): string {
   if (!sim.running) return "⏸ Paused — press ▶ Run.";
   const perStep = omegaOfLevel(p.speed, sim.engine.settings.frequencyScale) / (2 * Math.PI);
   const n = perStep * sim.stats.stepsPerSec;
