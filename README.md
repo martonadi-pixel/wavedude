@@ -4,6 +4,27 @@ An interactive 2D & 3D wave simulator that runs in the browser (WebGL2, nothing 
 
 **Status:** not online yet. It will be hosted soon; until then you can run it yourself (see below).
 
+## Screenshots
+
+<img src="docs/screenshots/double-slit.webp" alt="The double slit experiment: waves pass two slits and spread into bright and dark stripes; the graph below shows the brightness along the screen">
+
+**The double slit:** waves through two slits make bright and dark stripes, and the graph measures them along the screen.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/prism.webp" alt="White light through a glass prism fans out into a rainbow"><br><b>Why a prism makes a rainbow:</b> white light as eight colours at once, each bent by its own angle.</td>
+<td width="50%"><img src="docs/screenshots/soap-film.webp" alt="White light reflecting off a soap film 50 nm thick, coloured where it reflects"><br><b>Why soap bubbles are colourful:</b> a film 50 nm thick reflects some colours and lets the others through.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/sandbox.webp" alt="The sandbox with a laser and a convex lens bringing the beam to a focus"><br><b>Sandbox:</b> build your own scene. Here a laser and a lens make a focus.</td>
+<td><img src="docs/screenshots/3d-view.webp" alt="Ripples from a tapping finger shown as a 3D surface"><br><b>3D view:</b> the waves as a surface you can turn and zoom.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/experiments.webp" alt="The list of guided experiments by level, next to the running simulation"><br><b>19 guided experiments</b> for Kids, School, University and Research.</td>
+<td><img src="docs/screenshots/how-it-works.webp" alt="The How it works library with chapters on waves, light, maths and the code"><br><b>How it works:</b> 52 pages on the physics, the maths and the code, at four levels.</td>
+</tr>
+</table>
+
 ## Where it comes from
 
 This project is a port of other people's work to the web:
