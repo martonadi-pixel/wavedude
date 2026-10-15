@@ -1,4 +1,4 @@
-// Wave Dude 2D web - "How it works" library: light and optics (is light a wave, lenses, mirrors,
+// Wave Dude 2D web - "How it works" library: light and optics (is light a wave, wave or particle, lenses, mirrors,
 // total internal reflection and fibres, colour and rainbows, resolution, polarization).
 // GPL-3.0-or-later.
 
@@ -100,6 +100,76 @@ export const category: LearnCategory = {
         "July 1816: Fresnel's Evidence for the Wave Theory of Light (APS News, 2016) — https://www.aps.org/apsnews/2016/07/fresnel-wave-theory-light",
         "December 18, 1926: Gilbert Lewis coins “photon” in letter to Nature (APS News, 2012) — https://www.aps.org/publications/apsnews/201212/physicshistory.cfm",
         "R. Loudon, The Quantum Theory of Light, 3rd ed. (Oxford University Press, 2000)",
+      ],
+    },
+
+    // ------------------------------------------------------------------ wave or particle?
+    {
+      id: "wave-or-particle",
+      title: "Wave or particle? Watching the double slit",
+      summary: "Send particles through two slits one at a time and they still make stripes. Watch which slit they take and the stripes vanish. Why?",
+      sections: [
+        {
+          level: "kids",
+          html: `
+<p>Make the light so dim that only <b>one tiny bit of light</b> (a photon) flies at a time. Each one lands on the screen as a single dot, like a raindrop. The first dots look random. But after thousands of dots, a pattern appears: <b>stripes</b>, the same bright and dark stripes that waves make! Even one photon at a time behaves as if its wave went through <b>both</b> slits.</p>
+<p>So scientists asked: which slit does each photon <i>really</i> go through? They put a <b>detector</b> at one slit to watch. And then something strange happened: the stripes <b>disappeared</b>. The dots made two plain smudges, just like little balls would.</p>
+<p>Why? To see something as tiny as a photon or an electron, you have to bump it with something, like light. That bump is not gentle: it jiggles the particle's wave by a random amount every time. Each particle's stripes end up in a different place, and all the jiggled stripes added together blur into a smooth glow.</p>
+<div class="fact"><b>Fun fact:</b> The famous scientist Richard Feynman said this experiment holds “the only mystery” of the quantum world. It works with electrons, atoms and even big molecules made of 60 atoms.</div>`,
+        },
+        {
+          level: "school",
+          html: `
+<h4>One particle at a time</h4>
+<ul>
+<li><b>1909</b>: Geoffrey Ingram Taylor photographed interference fringes with light so faint that the exposure took months. By modern reckoning there was hardly ever more than one photon in the apparatus at a time. The fringes were still there.</li>
+<li><b>1961</b>: Claus Jönsson showed interference with electrons through several tiny slits.</li>
+<li><b>1974–1989</b>: Pier Giorgio Merli, Gian Franco Missiroli and Giulio Pozzi in Bologna, and then Akira Tonomura's team at Hitachi, sent single electrons through an electron “double slit” (a biprism) and filmed the dots arriving one by one. After a few hundred dots: noise. After tens of thousands: clear fringes.</li>
+<li><b>1999</b>: Markus Arndt, Anton Zeilinger and colleagues made C<sub>60</sub> “buckyball” molecules interfere.</li>
+</ul>
+<p>The rule that ties the wave to the dots is <b>Born's rule</b> (Max Born, 1926): the wave does not say where the particle <i>is</i>; its intensity says how <b>likely</b> it is to be found at each place. Where the waves from the two slits cancel, no particle ever lands.</p>
+<h4>Which way did it go?</h4>
+<p>If each particle went through one slit only, the screen would show the pattern of slit A plus the pattern of slit B: two humps and no stripes. Waves add <i>before</i> they are squared: with A and B the waves from the two slits, the screen gets</p>
+<p class="formula">both open, not watched: (A + B)² = A² + B² + 2AB &nbsp;&nbsp; watched: A² + B²</p>
+<p>The extra term 2AB is what makes the stripes: positive where the waves meet in step, negative where they cancel. Any detector that tells you which slit the particle took removes that term.</p>
+<p>Richard Feynman's explanation: to see an electron you must scatter light off it, and the light must have a wavelength shorter than the distance between the slits to tell them apart. Such light kicks the electron hard enough to shift its stripes by an unpredictable amount, different for every electron. Added up over many electrons, the stripes wash out. In 1927 Einstein proposed measuring the recoil of the slit wall instead; Niels Bohr answered that pinning down the wall's motion that precisely makes its position uncertain enough to smear the fringes too.</p>
+<p class="aside">The simulator's double slit has a detector of this kind: it shifts the phase of the wave through one slit by a random amount many times a second. Watch the stripes jump about in the picture, and watch the dots on the screen lose their stripes.</p>`,
+        },
+        {
+          level: "university",
+          html: `
+<h4>Which-way information and fringe visibility</h4>
+<p>Let ψ<sub>A</sub>(x) and ψ<sub>B</sub>(x) be the amplitudes at the screen from each slit. Unobserved, P(x) = |ψ<sub>A</sub> + ψ<sub>B</sub>|². Now let a detector end up in state |d<sub>A</sub>⟩ or |d<sub>B</sub>⟩ depending on the path. The particle and the detector are <b>entangled</b>, |Ψ⟩ = (ψ<sub>A</sub>|d<sub>A</sub>⟩ + ψ<sub>B</sub>|d<sub>B</sub>⟩)/√2, and</p>
+<p class="formula">P(x) ∝ |ψ<sub>A</sub>|² + |ψ<sub>B</sub>|² + 2 Re[ψ<sub>A</sub>* ψ<sub>B</sub> ⟨d<sub>A</sub>|d<sub>B</sub>⟩]</p>
+<p>The fringe visibility is V = |⟨d<sub>A</sub>|d<sub>B</sub>⟩| (for equal amplitudes). Orthogonal detector states (perfect which-way information) give V = 0, whether or not anyone reads the detector. Englert (1996) made the trade-off exact: with D the best possible distinguishability of the paths, <b>D² + V² ≤ 1</b>.</p>
+<p>A random phase kick is a special case: if the detector multiplies ψ<sub>B</sub> by e<sup>iφ</sup> with φ random, then ⟨d<sub>A</sub>|d<sub>B</sub>⟩ is replaced by the average ⟨e<sup>iφ</sup>⟩. For φ spread evenly over [0, Φ], V = |sin(Φ/2)/(Φ/2)|: zero for a full turn Φ = 2π, 2/π ≈ 0.64 for half a turn.</p>
+<p><b>Kicks are not the whole story.</b> Dürr, Nonn and Rempe (1998) marked the path of atoms in an atom interferometer with an internal state, transferring far too little momentum to shift the fringes, and the fringes still vanished. What destroys the interference is the <b>correlation</b> between path and detector, not the disturbance as such. Feynman's microscope, the Einstein–Bohr recoiling slit and the simulator's phase kicker are vivid examples of one general rule.</p>
+<h4>The quantum eraser</h4>
+<p>If the which-way marks are later made indistinguishable (projecting the detector onto (|d<sub>A</sub>⟩ ± |d<sub>B</sub>⟩)/√2), fringes reappear, but only among the particles sorted by that outcome; the two sorted sets show fringes and anti-fringes that add up to no fringes overall. Proposed by Scully and Drühl (1982), done with polarization-marked photons by Walborn et al. (2002). Nothing travels back in time: the unsorted screen never changes.</p>`,
+        },
+        {
+          level: "research",
+          title: "What the simulator does here, and what it cannot do",
+          html: `
+<p>The grid evolves one classical scalar field. The particle screen samples landing points from the time-averaged intensity along the screen probe (Born's rule with the classical field playing ψ), so its dot histogram converges to the intensity pattern averaged over the run. The which-way detector is a glass block in front of one slit whose index jumps among values spread evenly over a range that shifts the phase by up to Φ; it is a classical <b>dephasing</b> channel. The intensity view, a two-stage running average of u² over a few hundred steps, holds only some tens of independent phases at a time, so its stripes fade only to a visibility of about 1/√N; the screen, which adds up particles over the whole run, goes to the ensemble value |sinc(Φ/2)|.</p>
+<p>What cannot be modelled: entanglement with a detector that is itself quantum (the general mechanism, see Dürr et al.), single-photon statistics (a single particle cannot land twice; here the dots are independent samples by construction), the eraser's conditional fringes, and any measurement back-action beyond the phase kick. The 2D scalar wave is the exact model for E<sub>z</sub> of light in a z-invariant structure, and the Schrödinger equation for a free particle is a different (dispersive) wave equation, so the analogy for electrons is qualitative.</p>`,
+        },
+      ],
+      tryIt: [
+        { experiment: "double-slit", label: "The double slit (with particles and a which-way detector)" },
+        { experiment: "single-slit", label: "One gap: squeeze a wave and it spreads" },
+      ],
+      sources: [
+        "R. Feynman, R. Leighton and M. Sands, The Feynman Lectures on Physics, vol. III ch. 1, Quantum Behavior — https://www.feynmanlectures.caltech.edu/III_01.html",
+        "G. I. Taylor, Interference fringes with feeble light, Proc. Camb. Phil. Soc. 15 (1909) 114",
+        "P. G. Merli, G. F. Missiroli and G. Pozzi, On the statistical aspect of electron interference phenomena, Am. J. Phys. 44 (1976) 306",
+        "A. Tonomura, J. Endo, T. Matsuda, T. Kawasaki and H. Ezawa, Demonstration of single-electron buildup of an interference pattern, Am. J. Phys. 57 (1989) 117",
+        "M. Arndt et al., Wave–particle duality of C60 molecules, Nature 401 (1999) 680",
+        "B.-G. Englert, Fringe visibility and which-way information: an inequality, Phys. Rev. Lett. 77 (1996) 2154",
+        "S. Dürr, T. Nonn and G. Rempe, Origin of quantum-mechanical complementarity probed by a ‘which-way’ experiment in an atom interferometer, Nature 395 (1998) 33",
+        "M. O. Scully and K. Drühl, Quantum eraser, Phys. Rev. A 25 (1982) 2208",
+        "S. P. Walborn, M. O. Terra Cunha, S. Pádua and C. H. Monken, Double-slit quantum eraser, Phys. Rev. A 65 (2002) 033818",
+        "N. Bohr, Discussion with Einstein on epistemological problems in atomic physics (1949), in P. A. Schilpp (ed.), Albert Einstein: Philosopher-Scientist",
       ],
     },
 
