@@ -221,7 +221,7 @@ export class Sim {
     this.engine.setScene(scene);
     this.annotations = emptyOverlay();
     this.view.measure = { ruler: null, protractor: null };
-    this.setProbes(probes);
+    this.setOwnProbes(probes);
     this.refreshSources();
     this.logic?.attach();
     this.view.fit();
@@ -448,21 +448,33 @@ export class Sim {
    * Sets the probes. A probe given with the id of one already there keeps its colour, its label and (if it measures
    * the same thing at the same place) its record; new ones get the first free colour and number.
    */
+  /**
+   * Sets all the probes. A probe whose id is already there keeps its id, colour, label and record; one that comes back
+   * (undo) gets its old id, colour and label again when they are free; a new one gets the next free ones.
+   */
   setProbes(probes: NewProbe[]): void {
-    // during an experiment the reader's own probes stay when the experiment sets its probes again
-    if (this.keepMine && !probes.some(p => p.mine)) probes = [...probes, ...this.probeList().filter(p => p.mine)];
     const old = new Map(this.probes.map(p => [p.id, p]));
     const kept = probes.map(p => (p.id !== undefined ? old.get(p.id) : undefined));
+    const ids = new Set(kept.filter(Boolean).map(p => p!.id));
     const colors = new Set(kept.filter(Boolean).map(p => p!.color));
     const labels = new Set(kept.filter(Boolean).map(p => p!.label));
+    const take = <T>(set: Set<T>, v: T | undefined) => (v !== undefined && !set.has(v) ? (set.add(v), v) : undefined);
     const free = (prefix: string) => { for (let n = 1; ; n++) if (!labels.has(`${prefix}${n}`)) { labels.add(`${prefix}${n}`); return `${prefix}${n}`; } };
     const freeColor = () => { const c = PROBE_COLORS.find(x => !colors.has(x)) ?? PROBE_COLORS[colors.size % PROBE_COLORS.length]; colors.add(c); return c; };
     const before = new Map(this.probes.map(p => [p.id, p]));
     this.probes = probes.map((p, i) => {
       const k = kept[i];
-      return { ...p, id: k ? k.id : this.nextProbeId++, color: k ? k.color : freeColor(), label: k ? k.label : free(p.kind === "point" ? "P" : "L") };
+      if (k) return { ...p, id: k.id, color: k.color, label: k.label };
+      const id = take(ids, p.id) ?? this.nextProbeId++;
+      this.nextProbeId = Math.max(this.nextProbeId, id + 1);
+      return { ...p, id, color: take(colors, p.color) ?? freeColor(), label: take(labels, p.label) ?? free(p.kind === "point" ? "P" : "L") };
     });
     this.applyProbes(before);
+  }
+
+  /** An experiment sets its own probes: during an experiment the probes the reader placed stay. */
+  setOwnProbes(probes: NewProbe[]): void {
+    this.setProbes(this.keepMine ? [...probes.filter(p => !p.mine), ...this.probeList().filter(p => p.mine)] : probes);
   }
   private nextProbeId = 1;
 
@@ -500,10 +512,7 @@ export class Sim {
   /** Removes the probes the reader placed during an experiment. */
   clearMine(): void {
     if (!this.probes.some(p => p.mine)) return;
-    const keep = this.keepMine;
-    this.keepMine = false;
     this.setProbes(this.probeList().filter(p => !p.mine));
-    this.keepMine = keep;
     this.notify();
   }
 
@@ -636,8 +645,24 @@ export class Sim {
   waveHeight = 0.12;
   meshDetail = 640;
 
+  /** White light: eight colours at once, in true colour (see core/spectrum.ts); glass disperses them. */
+  get whiteLight(): boolean { return this.engine.whiteLight; }
+  /** How much stronger than real glass the dispersion is in white light (1 = real crown glass). */
+  get dispersion(): number { return this.engine.dispersion; }
+
+  /** Switches white light on or off (the waves start again), with this much dispersion. */
+  setWhiteLight(on: boolean, dispersion = this.engine.dispersion): void {
+    if (on === this.whiteLight && dispersion === this.engine.dispersion) return;
+    this.engine.setWhiteLight(on, dispersion);
+    // the 3D surface shows one wave: white light is seen flat
+    if (on && this.dim === "3d") this.dim = "2d";
+    this.historyStart = this.engine.time;
+    this.notify();
+  }
+
   /** Draws the simulation and the overlay as the view shows them. */
   renderView(): void {
+    if (this.dim === "3d" && this.whiteLight) this.dim = "2d";
     this.view.mode3d = this.dim === "3d";
     if (this.dim === "3d") {
       const cam = this.view.camera();
@@ -795,6 +820,7 @@ export class Sim {
    * smoothly instead of at once.
    */
   autoBrightness(views: Quantity[] = [this.view_], fade = false): void {
+    if (this.whiteLight) return this.autoColourBrightness(views, fade);
     const st = this.engine.readState();
     const scale = this.engine.settings.intensityScale;
     const W = this.scene.width, n = W * this.scene.height, stride = Math.max(1, Math.floor(n / 200000));
@@ -824,6 +850,25 @@ export class Sim {
       const p = list[Math.floor(list.length * 0.995)];
       if (!(p > 0)) continue;
       const b = Math.min(1000, Math.max(0.1, 0.9 / p));
+      if (fade) this.fadeBrightness(q, b, 500); else this.brightness[q] = b;
+    }
+  }
+
+  /**
+   * White light: the brightest 0.5% of the cells (by their strongest colour) just reach full colour. The picture shows
+   * linear light × brightness², and the field view's light now peaks at twice its average.
+   */
+  private autoColourBrightness(views: Quantity[], fade: boolean): void {
+    const c = this.engine.readColour();
+    if (!c) return;
+    const n = c.length / 4, stride = Math.max(1, Math.floor(n / 200000)), vals: number[] = [];
+    for (let i = 0; i < n; i += stride) { const v = Math.max(c[i * 4], c[i * 4 + 1], c[i * 4 + 2]); if (v > 0) vals.push(v); }
+    if (vals.length < 10) return;
+    vals.sort((a, b) => a - b);
+    const p = vals[Math.floor(vals.length * 0.995)];
+    if (!(p > 0)) return;
+    for (const q of views) {
+      const b = Math.min(1000, Math.max(0.1, Math.sqrt(0.9 / (q === "field" ? 2 * p : p))));
       if (fade) this.fadeBrightness(q, b, 500); else this.brightness[q] = b;
     }
   }

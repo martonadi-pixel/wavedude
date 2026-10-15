@@ -134,15 +134,14 @@ export function drawOptic(scene: Scene, o: OpticSpec, clip: { x0: number; y0: nu
   const x1 = Math.min(scene.width - 1, b.x1, clip.x1), y1 = Math.min(scene.height - 1, b.y1, clip.y1);
   const a = (o.angleDeg * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
   const at = (px: number, py: number) => { const dx = px - o.x, dy = py - o.y; return materialAt(o, dx * ca + dy * sa, -dx * sa + dy * ca); };
-  // mirrors are walls: a cell is wall or not, by its centre; glass gets smooth edges
-  const wall = o.kind === "mirror" || o.kind === "parabolic";
+  // mirrors are walls: a cell is wall or not, by its centre; so is the thin beam splitter (see THIN in shapes.ts);
+  // all other glass gets smooth edges
+  const wall = o.kind === "mirror" || o.kind === "parabolic" || o.kind === "splitter";
   const nAt = (px: number, py: number) => at(px, py)?.n ?? null;
   for (let y = y0; y <= y1; y++)
     for (let x = x0; x <= x1; x++) {
       if (wall) { const m = at(x + 0.5, y + 0.5); if (m) scene.setCell(y * scene.width + x, m); continue; }
       drawGlassCell(scene, x, y, nAt);
-      // the beam splitter also clears any wall under it (as before)
-      if (o.kind === "splitter" && at(x + 0.5, y + 0.5)) scene.setCell(y * scene.width + x, { absorb: 0 });
     }
 }
 

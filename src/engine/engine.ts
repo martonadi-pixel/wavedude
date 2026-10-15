@@ -2,6 +2,8 @@
 // GPL-3.0-or-later. Simulation core based on WaveSimulator2D by 0x23.
 
 import { DISPLAY_FS, MESH_FS, MESH_VS, PROBE_LINE_FS, PROBE_POINT_FS, SOURCES_FS, STEP_FS, VS } from "./shaders";
+import { type Program, bind, framebuffer, program, texture } from "./gl";
+import { SpectralField } from "./spectral";
 import { type Scene } from "../core/scene";
 import { type SourceElement } from "../core/sources";
 import { FREQUENCY_SCALE, omegaOfLevel, type Stencil, subStepsFor } from "../core/physics";
@@ -51,7 +53,6 @@ const MAX_LINE_PROBES = 4;
 const HISTORY = 1024;      // point probe values kept on the GPU before they are read back
 const MAX_LINE_CELLS = 4096;
 
-interface Program { pr: WebGLProgram; u: Record<string, WebGLUniformLocation> }
 
 /** The engine settings experiments are written for (the Sandbox and projects may change them). */
 export const defaultSettings = (): EngineSettings =>
@@ -151,6 +152,8 @@ export class WaveEngine {
     this.fieldFbo = null;
     if (this.lut) this.setColorScheme(this.lut.colors, this.lut.blackLevel);
     if (!scene) return;
+    // white light's fields were on the lost context: they are made again when next needed
+    this.spectral = null;
     this.setScene(scene);
     const moving = this.moving;
     this.setSources(elements);
@@ -182,6 +185,7 @@ export class WaveEngine {
       this.srcATex = this.texture(scene.width, scene.height, gl.RGBA32F, gl.RGBA, gl.FLOAT, null);
       this.srcBTex = this.texture(scene.width, scene.height, gl.RGBA32F, gl.RGBA, gl.FLOAT, null);
     }
+    if (sizeChanged && this.spectral) { this.spectral.dispose(); this.spectral = null; }
     this.updateMaterial();
     this.elements = [];
     this.moving = [];
@@ -304,9 +308,72 @@ export class WaveEngine {
     }
   }
 
+  // ------------------------------------------------------------------------------------------ white light
+
+  /** White light: eight wavelengths at once (see spectral.ts); null for the usual single wave. */
+  private spectral: SpectralField | null = null;
+  /** How much stronger than real crown glass the white light's dispersion is. */
+  private exaggerate = 10;
+
+  get whiteLight(): boolean { return this.white; }
+  private white = false;
+  get dispersion(): number { return this.exaggerate; }
+
+  /**
+   * Switches white light on or off (its eight fields take GPU memory only while it is on); `exaggerate` sets the glass's
+   * dispersion (1 = real crown glass). Switching clears the waves.
+   */
+  setWhiteLight(on: boolean, exaggerate = this.exaggerate): void {
+    this.exaggerate = exaggerate;
+    this.white = on;
+    // the eight fields are made when first needed: a scene of another size may be loaded first
+    if (!on && this.spectral) { this.spectral.dispose(); this.spectral = null; }
+    if (this.spectral) this.spectral.exaggerate = exaggerate;
+    this.reset();
+  }
+
+  /** White light's fields, made now if they are not there yet (or were for another scene size). */
+  private whiteField(): SpectralField | null {
+    if (!this.white || !this.scene) return null;
+    if (this.spectral && (this.spectral.width !== this.width || this.spectral.height !== this.height)) { this.spectral.dispose(); this.spectral = null; }
+    if (!this.spectral) {
+      this.spectral = new SpectralField(this.gl, this.width, this.height);
+      this.spectral.exaggerate = this.exaggerate;
+      this.spectral.probes = this.spectrumProbes;
+    }
+    return this.spectral;
+  }
+
+  /** White light: the eight fields u now in a rectangle (8 values per cell, violet first). Use sparingly. */
+  readSpectrum(x: number, y: number, w = 1, h = 1): Float32Array | null {
+    x = clamp(x, 0, this.width - 1); y = clamp(y, 0, this.height - 1);
+    return this.spectral?.readField(x, y, Math.max(1, Math.min(w, this.width - x)), Math.max(1, Math.min(h, this.height - y))) ?? null;
+  }
+
+  /** White light: probes at single cells (up to 4) that record all eight colours every step. */
+  private spectrumProbes: { x: number; y: number }[] = [];
+  setSpectrumProbes(at: { x: number; y: number }[]): void {
+    this.spectral?.readProbes();
+    this.spectrumProbes = at.map(p => ({ ...p }));
+    if (this.spectral) this.spectral.probes = this.spectrumProbes;
+  }
+
+  /** White light: each probe's values since the last call (per probe, one array of eight per step, violet first). */
+  readSpectrumProbes(): number[][][] { return this.spectral?.readProbes() ?? this.spectrumProbes.map(() => []); }
+
+  /** White light: the averaged colour of every cell (linear r, g, b, 1). Slow. */
+  readColour(): Float32Array | null { return this.spectral?.readColour() ?? null; }
+
+  /** The colour average's per-step factor: about two periods of the reddest colour per decay factor unit, as the one-wave intensity. */
+  private colourAlpha(): number {
+    const w = Math.min(...this.whiteField()!.omegas(this.settings.stencil, this.subSteps));
+    return Math.exp(-1 / Math.max(1, (0.784 * this.settings.timeDecayFactor) / w));
+  }
+
   /** Clears the field and the intensity but keeps counting steps (the sources go on in step with their phase). */
   clearField(): void {
     const gl = this.gl;
+    this.spectral?.clear();
     for (const f of this.fbo) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, f);
       gl.clearColor(0, 0, 0, 0);
@@ -317,6 +384,7 @@ export class WaveEngine {
   /** Clears the field and the intensity and starts again at step 0. */
   reset(): void {
     const gl = this.gl;
+    this.spectral?.clear();
     for (const f of this.fbo) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, f);
       gl.clearColor(0, 0, 0, 0);
@@ -369,6 +437,15 @@ export class WaveEngine {
   /** Advances the simulation n steps (sources, field and intensity; point probes sampled every step). */
   step(n: number): void {
     if (!this.scene) return;
+    const white = this.whiteField();
+    if (white) {
+      const sub = this.subSteps, alpha = this.colourAlpha();
+      for (let k = 0; k < n; k++) {
+        white.step({ time: this.time, sub, stencil: this.settings.stencil, alpha, mat: this.matTex!, srcA: this.srcATex!, srcB: this.srcBTex! });
+        this.time++;
+      }
+      return;
+    }
     const gl = this.gl, P = this.stepP, S = this.sourcesP, sub = this.subSteps;
     gl.useProgram(S.pr);
     gl.uniform1i(S.u.state, 0);
@@ -570,7 +647,7 @@ export class WaveEngine {
   // ------------------------------------------------------------------------------------------ display
 
   render(o: DisplayOptions): void {
-    const gl = this.gl, P = this.showP;
+    const white = this.whiteField(), gl = this.gl, P = white?.showP ?? this.showP;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     if (!this.scene) {
@@ -599,6 +676,8 @@ export class WaveEngine {
     this.bind(1, this.matTex!);
     this.bind(2, this.srcATex!);
     this.bind(3, this.lutTex);
+    // white light: its own fields and colour weights (the one-wave uniforms above are not in its program)
+    white?.bindForDisplay();
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
@@ -662,51 +741,15 @@ export class WaveEngine {
 
   // ------------------------------------------------------------------------------------------ GL helpers
 
-  private program(fs: string, vs = VS): Program {
-    const gl = this.gl;
-    const pr = gl.createProgram()!;
-    for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]] as const) {
-      const s = gl.createShader(type)!;
-      gl.shaderSource(s, src);
-      gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) ?? "shader error");
-      gl.attachShader(pr, s);
-    }
-    gl.linkProgram(pr);
-    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr) ?? "link error");
-    const u: Record<string, WebGLUniformLocation> = {};
-    const n = gl.getProgramParameter(pr, gl.ACTIVE_UNIFORMS) as number;
-    for (let i = 0; i < n; i++) {
-      const a = gl.getActiveUniform(pr, i)!;
-      u[a.name] = gl.getUniformLocation(pr, a.name)!;
-    }
-    return { pr, u };
-  }
+  private program(fs: string, vs = VS): Program { return program(this.gl, fs, vs); }
 
   private texture(w: number, h: number, internal: number, format: number, type: number, data: ArrayBufferView | null): WebGLTexture {
-    const gl = this.gl;
-    const t = gl.createTexture()!;
-    gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, data);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    return t;
+    return texture(this.gl, w, h, internal, format, type, data);
   }
 
-  private framebuffer(t: WebGLTexture): WebGLFramebuffer {
-    const gl = this.gl;
-    const f = gl.createFramebuffer()!;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
-    return f;
-  }
+  private framebuffer(t: WebGLTexture): WebGLFramebuffer { return framebuffer(this.gl, t); }
 
-  private bind(unit: number, t: WebGLTexture): void {
-    this.gl.activeTexture(this.gl.TEXTURE0 + unit);
-    this.gl.bindTexture(this.gl.TEXTURE_2D, t);
-  }
+  private bind(unit: number, t: WebGLTexture): void { bind(this.gl, unit, t); }
 
   /** Uploads one rectangle of a full-size RGBA float array. */
   private upload(t: WebGLTexture, data: Float32Array, x0 = 0, y0 = 0, x1 = this.width - 1, y1 = this.height - 1): void {

@@ -12,14 +12,15 @@ void main() {
 //   mat    r = c^2, g = damping d, b = refractive index (display), a = absorber amount without the edge (display)
 //   srcA   r = angular frequency, g = amplitude, b = phase, a = mode (0 none, 1 continuous, 2 gaussian, 3 square)
 //   srcB   r = on cycles, g = off cycles, b = detach step (-1 never), a = soft gain (0 = the source holds its cell)
-const SOURCE_GLSL = `
+export const SOURCE_GLSL = `
 uniform sampler2D srcA, srcB;
 uniform float t;
 const float PI = 3.14159265358979;
 const float DETACH_RAMP = 30.0;
 
-// value a source drives its cell towards at time t; false when it no longer drives (detached)
-bool sourceValue(vec4 a, vec4 b, out float v) {
+// how strongly a source drives at time t (amplitude x switch-on ramp x pulse shape x detach fade); false when it no
+// longer drives (detached). The ramp and the pulses are timed by the source's own frequency.
+bool sourceEnvelope(vec4 a, vec4 b, out float e) {
   float fade = 1.0;
   if (b.z >= 0.0) {
     float since = t - b.z;
@@ -53,7 +54,15 @@ bool sourceValue(vec4 a, vec4 b, out float v) {
       }
     }
   }
-  v = sin(a.b + omega * t) * a.g * env * fade;
+  e = a.g * env * fade;
+  return true;
+}
+
+// value a source drives its cell towards at time t; false when it no longer drives (detached)
+bool sourceValue(vec4 a, vec4 b, out float v) {
+  float e;
+  if (!sourceEnvelope(a, b, e)) return false;
+  v = sin(a.b + a.r * t) * e;
   return true;
 }`;
 
@@ -160,11 +169,30 @@ void main() {
   o = vec4(v, 0.0, 0.0, 1.0);
 }`;
 
-export const DISPLAY_FS = `#version 300 es
+// the field's colour at a cell (one wave): the colour scheme's table, indexed like ColorLut / FrameRenderer
+const MONO_WAVE = `
+uniform sampler2D state, lut;
+uniform float intensityScale;
+vec3 waveColor(ivec2 p) {
+  vec4 st = texelFetch(state, p, 0);
+  float idx;
+  if (mode < 0.5) {
+    // ColorLut.FieldIndex
+    idx = floor(clamp(st.r * brightness, -1.0, 1.0) * 127.0 + 127.0);
+  } else {
+    // FrameRenderer.RenderIntensity: sqrt(I) * brightness
+    float v = (st.b * 0.5 + st.a * 0.5) * intensityScale;
+    idx = v > 0.0 ? floor(min(sqrt(v) * brightness, 1.0) * 254.0) : 0.0;
+  }
+  return texelFetch(lut, ivec2(int(idx), 0), 0).rgb;
+}`;
+
+/** The display: the waves' colour (waveColor), materials, sources and outlines, zoomed and panned. */
+export const displayShader = (wave: string): string => `#version 300 es
 precision highp float;
-uniform sampler2D state, mat, srcA, lut;
+uniform sampler2D mat, srcA;
 uniform ivec2 size;
-uniform float mode, brightness, intensityScale, showMaterial, showSources, freqScale, outlines;
+uniform float mode, brightness, showMaterial, showSources, freqScale, outlines;
 uniform vec2 offset;        // cell coordinate at the top-left corner of the canvas
 uniform float cellsPerPx;   // cells per device pixel
 uniform float canvasH;
@@ -178,21 +206,13 @@ vec3 hue(float level) {     // the spectrum colour of a source level (physics.ts
   return r + m;
 }
 
+${wave}
+
 vec3 cellColor(vec2 cell) {
   if (cell.x < 0.0 || cell.y < 0.0 || cell.x >= float(size.x) || cell.y >= float(size.y)) return background;
   ivec2 p = ivec2(cell);
-  vec4 st = texelFetch(state, p, 0);
   vec4 m = texelFetch(mat, p, 0);
-  float idx;
-  if (mode < 0.5) {
-    // ColorLut.FieldIndex
-    idx = floor(clamp(st.r * brightness, -1.0, 1.0) * 127.0 + 127.0);
-  } else {
-    // FrameRenderer.RenderIntensity: sqrt(I) * brightness
-    float v = (st.b * 0.5 + st.a * 0.5) * intensityScale;
-    idx = v > 0.0 ? floor(min(sqrt(v) * brightness, 1.0) * 254.0) : 0.0;
-  }
-  vec3 col = texelFetch(lut, ivec2(int(idx), 0), 0).rgb;
+  vec3 col = waveColor(p);
   if (showMaterial > 0.5) {
     float glassAmt = clamp((m.b - 1.0) / 1.5, 0.0, 1.0);
     col = mix(col, col * 0.75 + vec3(0.10, 0.22, 0.30), glassAmt * 0.8);
@@ -253,6 +273,8 @@ void main() {
     o.rgb = mix(o.rgb, e.rgb, e.a * 0.9);
   }
 }`;
+
+export const DISPLAY_FS = displayShader(MONO_WAVE);
 
 // ------------------------------------------------------------------------------------------ 3D view
 // A grid mesh whose height is read from the state texture in the vertex shader: crests are hills, troughs valleys,

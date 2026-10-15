@@ -10,9 +10,8 @@ import { Scene } from "../../core/scene";
 import { DEFAULT_BRIGHTNESS_PCT, type Sim } from "../../sim/sim";
 import type { Tool } from "../../view/viewport";
 import { decodeImage, newMeta, newSceneInfo } from "../../project/project";
-import { h, adv, help, slider, select, check, numberInput, fold, refreshSummaries, filterFolds, tabs } from "../../components";
+import { h, adv, help, slider, select, check, numberInput, fold, refreshSummaries, filterFolds, tabs, isSimple, onSimpleChange } from "../../components";
 import type { Shell } from "../../app/shell";
-import { isSimple, onSimpleChange } from "../../app/simple";
 import { DEMOS, CIRCUITS } from "./demos";
 import { projectBar, toast } from "./project-bar";
 import { inspector } from "./inspector";
@@ -73,6 +72,7 @@ export function openSandbox(shell: Shell): void {
 function prepare(sim: Sim): void {
   sim.owner = "sandbox";
   Object.assign(sim.engine.settings, defaultSettings());
+  sim.setWhiteLight(false);
   sim.project = newMeta();
   sim.brightness = { field: 2, intensity: 2 };
   sim.brightnessPct = DEFAULT_BRIGHTNESS_PCT;

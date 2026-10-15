@@ -123,15 +123,23 @@ function materialOf(s: ShapeSpec): Material {
 }
 
 /**
+ * Glass lines thinner than this stay in whole cells. Smoothed, a plate only a few cells thick becomes one soft layer
+ * that reflects strongly at some wavelengths and hardly at all at others (a 3-cell plate of n 2.5 at 45° is almost
+ * exactly half a wave thick at level 60, and lets nearly everything through), unlike the coated beam splitters such
+ * plates stand for.
+ */
+const THIN = 4;
+
+/**
  * Draws the shape into the scene, only inside the clip rectangle (inclusive). Walls are set wherever the shape covers a
- * cell's centre; glass gets smooth edges (see drawGlassCell); an absorber grows from nothing at its border to full strength ABSORBER_RAMP cells
+ * cell's centre; glass gets smooth edges (see drawGlassCell) unless it is a thin line; an absorber grows from nothing at its border to full strength ABSORBER_RAMP cells
  * inside (or at its middle), and only ever adds absorption.
  */
 export function drawShape(scene: Scene, s: ShapeSpec, clip: { x0: number; y0: number; x1: number; y1: number }): void {
   const b = shapeBounds(s), W = scene.width, m = materialOf(s);
   const x0 = Math.max(0, b.x0, clip.x0), y0 = Math.max(0, b.y0, clip.y0);
   const x1 = Math.min(W - 1, b.x1, clip.x1), y1 = Math.min(scene.height - 1, b.y1, clip.y1);
-  if (s.material === "glass") {
+  if (s.material === "glass" && !(s.kind === "line" && s.thickness < THIN)) {
     // smooth edges (see drawGlassCell)
     const nAt = (px: number, py: number) => (shapeDepth(s, px, py).depth >= 0 ? s.n : null);
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) drawGlassCell(scene, x, y, nAt);
@@ -142,7 +150,7 @@ export function drawShape(scene: Scene, s: ShapeSpec, clip: { x0: number; y0: nu
       const { depth, max } = shapeDepth(s, x + 0.5, y + 0.5);
       if (depth < 0) continue;
       const i = y * W + x;
-      if (s.material === "wall") { scene.setCell(i, m); continue; }
+      if (s.material !== "absorber") { scene.setCell(i, m); continue; }
       const a = ABSORBER_STRENGTH * Math.min(1, depth / Math.max(1, Math.min(ABSORBER_RAMP, max))) ** 2;
       if (1 - scene.dBase[i] < a) scene.setCell(i, { absorb: a });
     }

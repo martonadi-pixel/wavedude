@@ -231,6 +231,8 @@ export class Selector {
   deleteSelection(): boolean {
     const sim = this.sim, sel = sim.selection;
     if (!sel) return false;
+    // the reader's own probe in an experiment is not part of the experiment's layout
+    const mine = sel.kind === "probe" && !!sim.probes.find(p => p.id === sel.id)?.mine;
     sim.undo.begin("Delete");
     switch (sel.kind) {
       case "source": { const s = sim.sources.find(q => q.id === sel.id); if (s) sim.removeSources([s]); break; }
@@ -243,7 +245,7 @@ export class Selector {
         break;
       }
     }
-    if (sim.owner === "experiment") sim.layoutChanged = true;
+    if (sim.owner === "experiment" && !mine) sim.layoutChanged = true;
     sim.select(null);
     sim.undo.commit();
     return true;

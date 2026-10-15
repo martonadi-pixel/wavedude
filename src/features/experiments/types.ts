@@ -66,6 +66,12 @@ export interface Step {
   readout?: (sim: Sim, p: Values) => string;
   /** Buttons under the readout. */
   actions?: Action[];
+  /**
+   * White light in this step: every source sends eight colours at once and the picture shows true colour (see
+   * core/spectrum.ts). The number is the glass's dispersion, as a multiple of real crown glass. Steps without it use
+   * the usual single wave.
+   */
+  whiteLight?: number;
   /** Runs when the step is shown (e.g. switch the view, add a source, start running). */
   enter?: (sim: Sim, p: Values) => void;
 }

@@ -10,3 +10,4 @@ export { installHelp } from "./tooltip";
 export { tabs, type TabSpec } from "./tabs";
 export { showMenu, closeMenu, menuButton, showPopover, type MenuItem } from "./menu";
 export { download } from "./download";
+export { isSimple, onSimpleChange, setSimple } from "./simple-mode";

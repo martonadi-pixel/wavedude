@@ -66,6 +66,7 @@ export function renderExperimentList(shell: Shell): void {
   // a calm demo behind the list
   shell.sim.owner = "experiment";
   Object.assign(shell.sim.engine.settings, defaultSettings());
+  shell.sim.setWhiteLight(false);
   shell.sim.keepMine = false;
   const first = EXPERIMENTS[0];
   const p = defaults(first);
@@ -140,11 +141,7 @@ export function openExperiment(shell: Shell, id: string): void {
   const mineNote = h("div", { class: "mine-probes", hidden: true });
   const removeMine = (id: number) => {
     sim.undo.begin("Delete probe");
-    // while the experiment keeps the reader's probes, setting a list without any of them would put them all back
-    const keep = sim.keepMine;
-    sim.keepMine = false;
     sim.removeProbe(id);
-    sim.keepMine = keep;
     sim.undo.commit();
   };
   const showMine = () => {
@@ -208,6 +205,7 @@ export function openExperiment(shell: Shell, id: string): void {
   function renderStep(enter: boolean): void {
     const st = exp.steps[stepIndex];
     if (enter) {
+      sim.setWhiteLight(st.whiteLight !== undefined, st.whiteLight ?? sim.dispersion);
       st.enter?.(sim, p);
       shell.setTools(st.tools ?? []);
     }

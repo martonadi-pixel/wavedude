@@ -65,7 +65,7 @@ function placeProbes(sim: Sim, p: Values): void {
   const x = OBST_X + p.dist;
   const scan = sim.time >= RUN ? scanScreen(sim, p) : null;
   now = { half: p.half, off: scan ? scan.off : Math.round(p.half / 2), scan };
-  sim.setProbes([pointProbe(x, CY, "intensity"), pointProbe(x, CY + now.off, "intensity"), lineProbe(x, CY - 200, x, CY + 200)]);
+  sim.setOwnProbes([pointProbe(x, CY, "intensity"), pointProbe(x, CY + now.off, "intensity"), lineProbe(x, CY - 200, x, CY + 200)]);
   sim.annotations.labels = sim.annotations.labels.filter(l => !l.text.startsWith("screen"));
   sim.annotations.labels.push({ x: x + 8, y: CY - 205, text: "screen", color: "#f472b6" });
 }

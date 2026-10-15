@@ -3,34 +3,21 @@
 // GPL-3.0-or-later.
 
 import type { Tool } from "../view/viewport";
-import { h, loadPref, savePref } from "../components";
+import { h, isSimple, onSimpleChange, setSimple } from "../components";
+
+export { isSimple, onSimpleChange };
 
 /** The Sandbox's tools in Simple mode. */
 export const SIMPLE_TOOLS: readonly Tool[] = ["pan", "source", "line", "barrier", "glass", "erase", "pointProbe"];
 
-let on = loadPref<boolean>("simple", false);
-const listeners: (() => void)[] = [];
-
-export const isSimple = (): boolean => on;
-
-/** Called whenever Simple mode is switched (once per listener, for the life of the page). */
-export function onSimpleChange(f: () => void): void { listeners.push(f); }
-
-export function setSimple(v: boolean): void {
-  on = v;
-  savePref("simple", v);
-  document.documentElement.classList.toggle("simple", v);
-  for (const f of listeners) f();
-}
-
 /** The switch in the header. */
 export function simpleToggle(): HTMLElement {
-  document.documentElement.classList.toggle("simple", on);
-  const b = h("button", { type: "button", class: "simple-toggle", "aria-pressed": String(on),
+  document.documentElement.classList.toggle("simple", isSimple());
+  const b = h("button", { type: "button", class: "simple-toggle", "aria-pressed": String(isSimple()),
     "aria-label": "Simple mode", "data-help": "Simple mode: fewer tools and settings, for young explorers. Click again to see everything." },
     "🧸", h("span", { class: "bl" }, " Simple"));
-  const sync = () => { b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); };
-  b.addEventListener("click", () => { setSimple(!on); });
+  const sync = () => { b.classList.toggle("on", isSimple()); b.setAttribute("aria-pressed", String(isSimple())); };
+  b.addEventListener("click", () => { setSimple(!isSimple()); });
   onSimpleChange(sync);
   sync();
   return b;
