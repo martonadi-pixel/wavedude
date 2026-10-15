@@ -3,11 +3,11 @@
 // Keys this version does not know are kept and written back, as the Windows app does.
 // GPL-3.0-or-later.
 
-import { Scene } from "../engine/scene";
-import { type SourceSpec, type SourceElement, type SourceMotion, newSource, newMotion, elementsOf } from "../engine/sources";
-import type { Sim, NewProbe, Measurement } from "../sim";
+import { Scene } from "../core/scene";
+import { type SourceSpec, type SourceElement, type SourceMotion, newSource, newMotion, elementsOf } from "../core/sources";
+import type { Sim, NewProbe, Measurement } from "../sim/sim";
 import { readZip, writeZip, type ZipEntry } from "./zip";
-import { Circuit, type LogicJSON } from "../logic/circuit";
+import { Circuit, type LogicJSON } from "../circuits/circuit";
 
 type Dict = Record<string, unknown>;
 

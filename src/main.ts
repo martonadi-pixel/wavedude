@@ -1,15 +1,15 @@
 // Wave Dude 2D web - the main window: header, panel, simulation with toolbar and graphs, and routing.
 // GPL-3.0-or-later.
 
-import "./style.css";
-import { Sim } from "./sim";
+import "./styles/style.css";
+import { Sim } from "./sim/sim";
 import type { Tool } from "./view/viewport";
 import { Graph } from "./view/graph";
-import { h, installHelp, installPanelToggle, installPanelResizer } from "./ui/dom";
-import type { GraphMarker, GraphMode, Shell } from "./ui/shell";
-import { renderExperimentList, openExperiment } from "./ui/guide";
-import { openSandbox } from "./ui/sandbox";
-import { openColors, installSavedSchemes } from "./ui/colors";
+import { h, installHelp, installPanelToggle, installPanelResizer } from "./components/dom";
+import type { GraphMarker, GraphMode, Shell } from "./app/shell";
+import { renderExperimentList, openExperiment } from "./features/experiments/guide";
+import { openSandbox } from "./features/sandbox/sandbox";
+import { openColors, installSavedSchemes } from "./features/colors/colors";
 
 const TOOLS: Record<Tool, { icon: string; label: string; help: string }> = {
   pan: { icon: "✋", label: "Pan", help: "Drag the picture to move the view; the mouse wheel zooms and two fingers pinch-zoom. Where allowed (Sandbox, kids' experiments) drag a source or a probe to move it — the cursor shows a hand over them. Right-drag always moves the view." },
@@ -241,7 +241,7 @@ function start(): void {
     if (page === "experiment" && arg) openExperiment(shell, arg);
     else if (page === "sandbox") openSandbox(shell);
     // the library is a lot of text: loaded the first time it is opened
-    else if (page === "learn") void import("./ui/learn").then(m => { if (location.hash.startsWith("#/learn")) m.openLearn(shell, arg, arg2); });
+    else if (page === "learn") void import("./features/learn/page").then(m => { if (location.hash.startsWith("#/learn")) m.openLearn(shell, arg, arg2); });
     else if (page === "colors") void openColors(shell);
     else renderExperimentList(shell);
     syncView();

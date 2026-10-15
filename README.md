@@ -41,25 +41,28 @@ The image is nginx (unprivileged, port 8080) serving the build; `/healthz` answe
 
 | Path | What |
 |---|---|
-| `src/engine/shaders.ts` | All GPU code: the wave step, probes, display |
-| `src/engine/engine.ts` | Textures, stepping, probes, read-back |
-| `src/engine/physics.ts` | Dispersion relation, wavelength, group velocity (used by the experiment checks) |
-| `src/engine/optics.ts` | Optical elements (lenses, ball lens, prism, mirrors, beam splitter, GRIN lens) drawn over the scene's base layer, and the laser housing |
-| `src/engine/scene.ts`, `sources.ts` | Scene cells (scene-image rules of the Windows app) and object sources (arrays, randomizing, lines) |
-| `src/project/` | Opening and saving Windows projects (`project.ts`) and a small zip reader/writer (`zip.ts`) |
-| `src/view/video.ts` | MP4 export with WebCodecs ([Mediabunny](https://mediabunny.dev), MPL-2.0, loaded only when recording) |
-| `src/ui/colors.ts` | The colour scheme editor |
-| `src/sim.ts` | One running simulation: frame loop, tools, probes |
+| `src/core/` | Pure maths and data (no browser): `physics.ts` (dispersion relation, wavelength, velocities), `scene.ts` (cells, scene-image rules, damping edge), `sources.ts` (point/array/line/laser sources and moving sources), `optics.ts` (lenses, mirrors, prisms…), `paint.ts` (brush, lines, boxes, graded absorbers). Unit-tested. |
+| `src/engine/` | The GPU: `shaders.ts` (wave step, probes, 2D/3D display) and `engine.ts` (textures, stepping, read-back) |
+| `src/sim/` | One running simulation: frame loop, tools, probes, overlay |
 | `src/view/` | Zoom/pan viewport with overlay (ruler, protractor, markers), graphs |
-| `src/experiments/` | The 15 guided experiments — each is a data object with steps, predictions and checks (`famous.ts`: Arago, Michelson, Bragg/Davisson–Germer, Compton, thin films) |
-| `src/learn/` | The "How it works" library: 7 categories in `content/*.ts`, each page with kids / school / university / research sections |
+| `src/circuits/` | Computing with waves: bit switches, detectors, wave transistors, ready-made circuits, the sandbox's logic tools |
+| `src/project/` | Opening and saving Windows projects (`project.ts`) and a small zip reader/writer (`zip.ts`) |
+| `src/components/` | Reusable UI pieces |
+| `src/app/` | The app shell (what the pages may use of the main window) |
+| `src/features/experiments/` | The guided experiments: the page (`guide.ts`), the registry (`index.ts`) and the experiments themselves in `catalog/` — each a data object with steps, predictions and checks |
+| `src/features/sandbox/` | The sandbox page, its logic panel and MP4 export (WebCodecs via [Mediabunny](https://mediabunny.dev), MPL-2.0, loaded only when recording) |
+| `src/features/learn/` | The "How it works" library: categories in `content/*.ts`, each page with kids / school / university / research sections |
+| `src/features/colors/` | The colour scheme editor |
+| `src/styles/` | Stylesheets |
 | `public/colorschemes/` | The colour schemes of the Windows app, unchanged |
+
+Checks: `npm run check` (type-check, lint, unit tests); `npm run build` for the site.
 
 In the browser console, `waveDude` is the running simulation (e.g. `waveDude.engine.step(1000)`).
 
 ## Adding an experiment
 
-Write an `Experiment` (see `src/experiments/types.ts`) and add it to `src/experiments/index.ts`. `setup` builds the scene with `Scene` drawing calls and sources; each step has HTML text and optionally a prediction question, the tools to offer, and a `task` whose `check` compares the learner's ruler/protractor measurement with `lam()` (the grid's own dispersion relation), so the expected values match what the simulation really does.
+Write an `Experiment` (see `src/features/experiments/types.ts`) in `src/features/experiments/catalog/` and add it to `src/features/experiments/index.ts`. `setup` builds the scene with `Scene` drawing calls and sources; each step has HTML text and optionally a prediction question, the tools to offer, and a `task` whose `check` compares the learner's ruler/protractor measurement with `lam()` (the grid's own dispersion relation), so the expected values match what the simulation really does.
 
 ## Licence
 

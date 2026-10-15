@@ -3,7 +3,7 @@
 // GPL-3.0-or-later.
 
 import { type WaveEngine, type DisplayOptions } from "../engine/engine";
-import { levelColor } from "../engine/physics";
+import { levelColor } from "../core/physics";
 import { lookAt, multiply, perspective, type Vec3 } from "./mat4";
 
 export type Tool =
