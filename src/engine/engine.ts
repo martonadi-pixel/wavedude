@@ -1,7 +1,7 @@
 // Wave Dude 2D web - the wave simulation on the GPU with WebGL2 (GpuWaveSimulator.vb / WaveSimulator.vb).
 // GPL-3.0-or-later. Simulation core based on WaveSimulator2D by 0x23.
 
-import { DISPLAY_FS, MESH_FS, MESH_VS, PROBE_LINE_FS, PROBE_POINT_FS, STEP_FS, VS } from "./shaders";
+import { DISPLAY_FS, MESH_FS, MESH_VS, PROBE_LINE_FS, PROBE_POINT_FS, SOURCES_FS, STEP_FS, VS } from "./shaders";
 import { type Scene } from "../core/scene";
 import { type SourceElement } from "../core/sources";
 import { FREQUENCY_SCALE, omegaOfLevel, type Stencil, subStepsFor } from "../core/physics";
@@ -66,6 +66,7 @@ export class WaveEngine {
   settings: EngineSettings = defaultSettings();
 
   private stepP!: Program;
+  private sourcesP!: Program;
   private pointP!: Program;
   private lineP!: Program;
   private showP!: Program;
@@ -73,6 +74,9 @@ export class WaveEngine {
   private meshIdx: { key: string; buf: WebGLBuffer; count: number; n: number; m: number } | null = null;
   private state: WebGLTexture[] = [];
   private fbo: WebGLFramebuffer[] = [];
+  /** The field with the sources applied (one float per cell), made once per step by the sources' pass. */
+  private fieldTex: WebGLTexture | null = null;
+  private fieldFbo: WebGLFramebuffer | null = null;
   private cur = 0;
   private matTex: WebGLTexture | null = null;
   private srcATex: WebGLTexture | null = null;
@@ -117,6 +121,7 @@ export class WaveEngine {
     // extensions have to be enabled again on a restored context
     if (!gl.getExtension("EXT_color_buffer_float")) throw new Error("This GPU/browser cannot render to float textures (EXT_color_buffer_float).");
     this.stepP = this.program(STEP_FS);
+    this.sourcesP = this.program(SOURCES_FS);
     this.pointP = this.program(PROBE_POINT_FS);
     this.lineP = this.program(PROBE_LINE_FS);
     this.showP = this.program(DISPLAY_FS);
@@ -142,7 +147,8 @@ export class WaveEngine {
     this.width = this.height = 0;
     this.state = [];
     this.fbo = [];
-    this.matTex = this.srcATex = this.srcBTex = null;
+    this.matTex = this.srcATex = this.srcBTex = this.fieldTex = null;
+    this.fieldFbo = null;
     if (this.lut) this.setColorScheme(this.lut.colors, this.lut.blackLevel);
     if (!scene) return;
     this.setScene(scene);
@@ -163,8 +169,10 @@ export class WaveEngine {
     this.height = scene.height;
     const n = scene.width * scene.height;
     if (sizeChanged) {
-      for (const t of [...this.state, this.matTex, this.srcATex, this.srcBTex]) if (t) gl.deleteTexture(t);
-      for (const f of this.fbo) gl.deleteFramebuffer(f);
+      for (const t of [...this.state, this.matTex, this.srcATex, this.srcBTex, this.fieldTex]) if (t) gl.deleteTexture(t);
+      for (const f of [...this.fbo, this.fieldFbo]) if (f) gl.deleteFramebuffer(f);
+      this.fieldTex = this.texture(scene.width, scene.height, gl.R32F, gl.RED, gl.FLOAT, null);
+      this.fieldFbo = this.framebuffer(this.fieldTex);
       this.state = [0, 1].map(() => this.texture(scene.width, scene.height, gl.RGBA32F, gl.RGBA, gl.FLOAT, null));
       this.fbo = this.state.map(t => this.framebuffer(t));
       this.matData = new Float32Array(n * 4);
@@ -361,27 +369,35 @@ export class WaveEngine {
   /** Advances the simulation n steps (sources, field and intensity; point probes sampled every step). */
   step(n: number): void {
     if (!this.scene) return;
-    const gl = this.gl, P = this.stepP, sub = this.subSteps;
+    const gl = this.gl, P = this.stepP, S = this.sourcesP, sub = this.subSteps;
+    gl.useProgram(S.pr);
+    gl.uniform1i(S.u.state, 0);
+    gl.uniform1i(S.u.srcA, 2);
+    gl.uniform1i(S.u.srcB, 3);
+    // the sources act on the first sub-step only: their pull is shared out so it does not grow with the sub-steps
+    gl.uniform1f(S.u.srcBlend, 0.1 / sub);
     gl.useProgram(P.pr);
     gl.uniform2i(P.u.size, this.width, this.height);
     gl.uniform1i(P.u.state, 0);
     gl.uniform1i(P.u.mat, 1);
-    gl.uniform1i(P.u.srcA, 2);
-    gl.uniform1i(P.u.srcB, 3);
+    gl.uniform1i(P.u.field, 4);
     gl.uniform1f(P.u.c2Scale, 1 / (sub * sub));
     gl.uniform1f(P.u.dPow, 1 / sub);
     gl.uniform1f(P.u.alpha, this.intensityAlpha());
     gl.uniform1f(P.u.use4th, this.settings.stencil === "4th" ? 1 : 0);
-    // the sources act on the first sub-step only: their pull is shared out so it does not grow with the sub-steps
-    gl.uniform1f(P.u.srcBlend, 0.1 / sub);
     this.bind(1, this.matTex!);
     this.bind(2, this.srcATex!);
     this.bind(3, this.srcBTex!);
+    this.bind(4, this.fieldTex!);
     gl.viewport(0, 0, this.width, this.height);
     for (let k = 0; k < n; k++) {
+      // AdvanceOneStep: sources once (their own pass), then `sub` field updates, the intensity on the last one
+      gl.useProgram(S.pr);
+      gl.uniform1f(S.u.t, this.time);
+      this.bind(0, this.state[this.cur]);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fieldFbo);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.useProgram(P.pr);
-      gl.uniform1f(P.u.t, this.time);
-      // AdvanceOneStep: sources once, then `sub` field updates, the intensity on the last one
       for (let s = 0; s < sub; s++) {
         gl.uniform1f(P.u.applySrc, s === 0 ? 1 : 0);
         gl.uniform1f(P.u.track, s === sub - 1 ? 1 : 0);

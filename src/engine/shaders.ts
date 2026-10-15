@@ -57,27 +57,37 @@ bool sourceValue(vec4 a, vec4 b, out float v) {
   return true;
 }`;
 
-export const STEP_FS = `#version 300 es
+// the sources' pass, once per step (before the first sub-step): the field with every source applied, u * 0.9 + v * 0.1
+// at a held source cell. The step then reads one float per neighbour instead of looking up the sources nine times.
+export const SOURCES_FS = `#version 300 es
 precision highp float;
-uniform sampler2D state, mat;
-uniform ivec2 size;
-uniform float c2Scale, dPow, alpha, applySrc, track, use4th, srcBlend;
+uniform sampler2D state;
+uniform float srcBlend;
 out vec4 o;
 ${SOURCE_GLSL}
-// the field as the step sees it: 0 outside the domain, u * 0.9 + v * 0.1 at a source cell
+void main() {
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  float u = texelFetch(state, p, 0).r;
+  vec4 a = texelFetch(srcA, p, 0);
+  float v;
+  if (a.a > 0.5) {
+    vec4 b = texelFetch(srcB, p, 0);
+    // a held source pulls its cell towards its value (0.1 per step, shared out over the sub-steps); a soft one adds
+    if (sourceValue(a, b, v)) u = b.a > 0.0 ? u + v * b.a * srcBlend * 10.0 : u * (1.0 - srcBlend) + v * srcBlend;
+  }
+  o = vec4(u, 0.0, 0.0, 1.0);
+}`;
+
+export const STEP_FS = `#version 300 es
+precision highp float;
+uniform sampler2D state, mat, field;
+uniform ivec2 size;
+uniform float c2Scale, dPow, alpha, applySrc, track, use4th;
+out vec4 o;
+// the field as the step sees it: 0 outside the domain; on the sources' sub-step, the field the sources' pass made
 float U(ivec2 p) {
   if (p.x < 0 || p.y < 0 || p.x >= size.x || p.y >= size.y) return 0.0;
-  float u = texelFetch(state, p, 0).r;
-  if (applySrc > 0.5) {
-    vec4 a = texelFetch(srcA, p, 0);
-    float v;
-    if (a.a > 0.5) {
-      vec4 b = texelFetch(srcB, p, 0);
-      // a held source pulls its cell towards its value (0.1 per step, shared out over the sub-steps); a soft one adds
-      if (sourceValue(a, b, v)) u = b.a > 0.0 ? u + v * b.a * srcBlend * 10.0 : u * (1.0 - srcBlend) + v * srcBlend;
-    }
-  }
-  return u;
+  return applySrc > 0.5 ? texelFetch(field, p, 0).r : texelFetch(state, p, 0).r;
 }
 void main() {
   ivec2 p = ivec2(gl_FragCoord.xy);
