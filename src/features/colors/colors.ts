@@ -4,7 +4,7 @@
 
 import type { Quantity } from "../../engine/engine";
 import type { ColorSchemeInfo } from "../../sim/sim";
-import { h, select } from "../../components/dom";
+import { h, select } from "../../components";
 import type { Shell } from "../../app/shell";
 
 const STOPS = 9, ENTRIES = 255;

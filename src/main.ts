@@ -5,7 +5,7 @@ import "./styles/style.css";
 import { Sim } from "./sim/sim";
 import type { Tool } from "./view/viewport";
 import { Graph } from "./view/graph";
-import { h, installHelp, installPanelToggle, installPanelResizer } from "./components/dom";
+import { h, installHelp, installPanelToggle, installPanelResizer } from "./components";
 import type { GraphMarker, GraphMode, Shell } from "./app/shell";
 import { renderExperimentList, openExperiment } from "./features/experiments/guide";
 import { openSandbox } from "./features/sandbox/sandbox";

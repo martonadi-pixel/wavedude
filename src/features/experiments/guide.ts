@@ -6,7 +6,7 @@ import { EXPERIMENTS } from ".";
 import { LEVELS, type Level, type Experiment, type Values, type Measured } from "./types";
 import { pulseMarkers } from "./catalog/advanced";
 import { angleDeg } from "../../view/viewport";
-import { h, slider, fold, loadPref, savePref } from "../../components/dom";
+import { h, slider, fold, loadPref, savePref } from "../../components";
 import type { Shell } from "../../app/shell";
 import { DEFAULT_BRIGHTNESS_PCT } from "../../sim/sim";
 

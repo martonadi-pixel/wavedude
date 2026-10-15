@@ -5,7 +5,7 @@
 import { CATEGORIES } from ".";
 import type { LearnCategory, LearnLevel, LearnPage } from "./types";
 import { EXPERIMENTS } from "../experiments";
-import { h } from "../../components/dom";
+import { h } from "../../components";
 import type { Shell } from "../../app/shell";
 
 const LEVELS: { id: LearnLevel; label: string; who: string }[] = [

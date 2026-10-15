@@ -9,7 +9,7 @@ import { newSceneInfo } from "../../project/project";
 import type { BitSwitch, Circuit, Detector, Transistor } from "../../circuits/circuit";
 import { buildGate, buildHalfAdder, buildFullAdder, buildTransistor, buildLatch, buildRegister, PRESS } from "../../circuits/builds";
 import { logicTemplate, logicSelected, selectPart, addEmitterTo, addingTo, type LogicTool } from "../../circuits/editor";
-import { h, help, slider, check, segmented, fold } from "../../components/dom";
+import { h, help, slider, check, segmented, fold } from "../../components";
 import type { Shell } from "../../app/shell";
 
 const PRESETS: { id: string; label: string; build: (sim: Sim) => void }[] = [

@@ -9,7 +9,7 @@ import { type OpticSpec, OPTIC_KINDS, newOptic, opticBounds, opticInfo } from ".
 import type { Quantity } from "../../engine/engine";
 import { DEFAULT_BRIGHTNESS_PCT, type Measurement } from "../../sim/sim";
 import { openProject, applyProject, saveProject, decodeImage, newMeta, newSceneInfo } from "../../project/project";
-import { h, help, slider, select, check, numberInput, segmented, fold, setFold, refreshSummaries, filterFolds } from "../../components/dom";
+import { h, help, slider, select, check, numberInput, segmented, fold, setFold, refreshSummaries, filterFolds } from "../../components";
 import type { Shell } from "../../app/shell";
 import { logicSection } from "./logic-panel";
 
