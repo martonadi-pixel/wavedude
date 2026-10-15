@@ -23,6 +23,8 @@ export interface SceneInfo {
   dirty: boolean;
   background: number;
   useSources: boolean;
+  /** Web only, not saved: the scene follows the size of the window (the Sandbox's "Fit window"). */
+  fit?: boolean;
 }
 
 export interface ProjectMeta {

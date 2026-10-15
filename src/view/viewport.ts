@@ -100,21 +100,39 @@ export class Viewport {
   get cssW(): number { return this.host.clientWidth; }
   get cssH(): number { return this.host.clientHeight; }
 
+  /** Called after the picture changed size (the window, the side panel, a bar shown or hidden). */
+  readonly resizeListeners: (() => void)[] = [];
+  private lastSize = { w: 0, h: 0 };
+
   resize(): void {
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
     for (const c of [this.canvas, this.overlayCanvas]) {
       c.width = Math.max(1, Math.round(this.cssW * this.dpr));
       c.height = Math.max(1, Math.round(this.cssH * this.dpr));
     }
+    const was = this.lastSize, w = this.cssW, h = this.cssH;
+    this.lastSize = { w, h };
     if (!this.userMoved) this.fit();
+    else if (was.w > 0 && was.h > 0 && w > 0 && h > 0) {
+      // zoomed in: the same part of the scene stays in the middle, as big compared with the window as before
+      const centre = { x: this.offX + (was.w / 2) * this.scale, y: this.offY + (was.h / 2) * this.scale };
+      this.scale = this.scaleFor(w, h) * (this.scale / this.scaleFor(was.w, was.h));
+      this.offX = centre.x - (w / 2) * this.scale;
+      this.offY = centre.y - (h / 2) * this.scale;
+    }
+    if (w > 0 && h > 0 && (w !== was.w || h !== was.h)) for (const f of this.resizeListeners) f();
+  }
+
+  /** Cells per CSS pixel that show the whole scene in a picture w × h pixels. */
+  private scaleFor(w: number, h: number): number {
+    return Math.max((this.engine.width || 1) / (w * 0.98), (this.engine.height || 1) / (h * 0.98));
   }
 
   /** Shows the whole scene, centred (in 3D: the camera's starting position). */
   fit(): void {
     if (this.mode3d) { this.cam = { yaw: -0.55, pitch: 0.62, dist: 2.25, tx: 0, tz: 0.05 }; return; }
     const w = this.engine.width || 1, h = this.engine.height || 1;
-    const pad = 0.98;
-    this.scale = Math.max(w / (this.cssW * pad), h / (this.cssH * pad));
+    this.scale = this.scaleFor(this.cssW, this.cssH);
     this.offX = w / 2 - (this.cssW / 2) * this.scale;
     this.offY = h / 2 - (this.cssH / 2) * this.scale;
     this.userMoved = false;

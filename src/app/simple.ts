@@ -27,7 +27,8 @@ export function setSimple(v: boolean): void {
 export function simpleToggle(): HTMLElement {
   document.documentElement.classList.toggle("simple", on);
   const b = h("button", { type: "button", class: "simple-toggle", "aria-pressed": String(on),
-    "data-help": "Simple mode: fewer tools and settings, for young explorers. Click again to see everything." }, "🧸 Simple");
+    "aria-label": "Simple mode", "data-help": "Simple mode: fewer tools and settings, for young explorers. Click again to see everything." },
+    "🧸", h("span", { class: "bl" }, " Simple"));
   const sync = () => { b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); };
   b.addEventListener("click", () => { setSimple(!on); });
   onSimpleChange(sync);

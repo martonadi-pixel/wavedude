@@ -227,6 +227,69 @@ export class Sim {
     this.view.fit();
   }
 
+  /**
+   * How far the objects reach from the middle of the scene, left-right and up-down (in cells, with a margin): a scene
+   * at least twice this size holds them all.
+   */
+  contentReach(margin = 24): { x: number; y: number } {
+    const cx = this.scene.width / 2, cy = this.scene.height / 2;
+    let rx = 0, ry = 0;
+    const box = (x0: number, y0: number, x1: number, y1: number) => {
+      rx = Math.max(rx, Math.abs(x0 - cx), Math.abs(x1 - cx));
+      ry = Math.max(ry, Math.abs(y0 - cy), Math.abs(y1 - cy));
+    };
+    for (const s of this.sources) {
+      const r = s.kind === "array" ? Math.max(s.countX * s.spacingX, s.countY * s.spacingY) / 2 : 0;
+      box(Math.min(s.x, s.x2) - r, Math.min(s.y, s.y2) - r, Math.max(s.x, s.x2) + r, Math.max(s.y, s.y2) + r);
+    }
+    for (const s of this.shapes) { const b = shapeBounds(s); box(b.x0, b.y0, b.x1, b.y1); }
+    for (const o of this.optics) { const b = opticBounds(o); box(b.x0, b.y0, b.x1, b.y1); }
+    for (const p of this.probes) box(Math.min(p.x, p.x2), Math.min(p.y, p.y2), Math.max(p.x, p.x2), Math.max(p.y, p.y2));
+    for (const d of this.logic?.detectors ?? []) for (const a of d.areas) box(a.x, a.y, a.x + a.w, a.y + a.h);
+    return { x: rx ? rx + margin : 0, y: ry ? ry + margin : 0 };
+  }
+
+  /**
+   * Gives the scene a new size, keeping what is in it centred and the waves running (the Sandbox's "Fit window" scenes
+   * follow the window). Cells beyond the old border get what was at the border. Undo steps from before are dropped:
+   * they refer to the old cells.
+   */
+  resizeScene(w: number, h: number): void {
+    const old = this.scene, ob = this.baseScene, W0 = old.width, H0 = old.height;
+    w = Math.max(64, Math.round(w)); h = Math.max(64, Math.round(h));
+    if (w === W0 && h === H0) return;
+    const dx = Math.round((w - W0) / 2), dy = Math.round((h - H0) / 2);
+    const field = this.engine.readState(), time = this.engine.time, sel = this.selection, running = this.running;
+    const base = new Scene(w, h);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const ox = x - dx, oy = y - dy, sx = Math.max(0, Math.min(W0 - 1, ox)), sy = Math.max(0, Math.min(H0 - 1, oy));
+        const i = y * w + x, j = sy * W0 + sx;
+        base.n[i] = ob.n[j]; base.c2[i] = ob.c2[j]; base.dBase[i] = ob.dBase[j];
+        if (ox === sx && oy === sy) base.imageLevel[i] = ob.imageLevel[j];
+      }
+    base.edge = old.edge;
+    base.edgeOn = old.edgeOn;
+    for (const s of this.sources) {
+      s.x += dx; s.y += dy; s.x2 += dx; s.y2 += dy;
+      if (s.baked) s.baked = s.baked.map(e => ({ ...e, x: e.x + dx, y: e.y + dy }));
+    }
+    for (const s of this.shapes) { s.x += dx; s.y += dy; }
+    for (const o of this.optics) { o.x += dx; o.y += dy; }
+    this.logic?.shift(dx, dy);
+    const probes = this.probeList().map(p => ({ ...p, x: p.x + dx, y: p.y + dy, x2: p.x2 + dx, y2: p.y2 + dy }));
+    const m = this.view.measure, mv = (p: Pt) => ({ x: p.x + dx, y: p.y + dy });
+    const measure = { ruler: m.ruler && { a: mv(m.ruler.a), b: mv(m.ruler.b) }, protractor: m.protractor && { v: mv(m.protractor.v), a: mv(m.protractor.a), b: mv(m.protractor.b) } };
+    base.shapes = this.shapes;
+    this.load(base, this.sources, probes, this.optics, true);
+    this.engine.writeState(field, W0, H0, dx, dy);
+    this.engine.time = time;
+    this.view.measure = measure;
+    this.selection = sel;
+    if (running) this.running = true;
+    this.notify();
+  }
+
   /** Loads the same scene again (base layer, sources, probes, optics), e.g. after a setting that needs a restart. */
   reload(): void {
     const base = this.baseScene.clone();

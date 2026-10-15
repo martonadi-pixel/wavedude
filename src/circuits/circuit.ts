@@ -214,6 +214,15 @@ export class Circuit {
     this.drawLabels();
   }
 
+  /** Moves every part's areas and labels by (dx, dy) cells (the scene grew round its middle; the simulation moves the sources). */
+  shift(dx: number, dy: number): void {
+    const mv = (p: { x: number; y: number } | null | undefined) => (p ? { x: p.x + dx, y: p.y + dy } : p);
+    for (const s of this.switches) { s.at = mv(s.at) ?? null; s.anchor = mv(s.anchor) ?? undefined; }
+    for (const d of this.detectors) { for (const a of d.areas) { a.x += dx; a.y += dy; } d.at = mv(d.at) ?? null; }
+    for (const t of this.transistors) { t.at = mv(t.at) ?? null; t.anchor = mv(t.anchor) ?? undefined; }
+    this.groups = null;
+  }
+
   /** Detector areas changed (moved, resized): read them afresh. */
   areasChanged(): void { this.groups = null; this.drawLabels(); }
 

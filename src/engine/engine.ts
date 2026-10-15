@@ -534,6 +534,19 @@ export class WaveEngine {
     return buf;
   }
 
+  /**
+   * Puts a field read with readState from a scene w0 × h0 back, moved by (dx, dy) cells (after the scene changed size);
+   * cells it does not reach start at rest.
+   */
+  writeState(data: Float32Array, w0: number, h0: number, dx: number, dy: number): void {
+    const W = this.width, H = this.height, buf = new Float32Array(W * H * 4);
+    for (let y = Math.max(0, dy); y < Math.min(H, h0 + dy); y++) {
+      const x0 = Math.max(0, dx), x1 = Math.min(W, w0 + dx);
+      if (x1 > x0) buf.set(data.subarray(((y - dy) * w0 + (x0 - dx)) * 4, ((y - dy) * w0 + (x1 - dx)) * 4), (y * W + x0) * 4);
+    }
+    for (const t of this.state) this.upload(t, buf);
+  }
+
   /** The intensity of a rectangle of cells, row by row from y (one read back from the GPU; use sparingly). */
   readIntensity(x: number, y: number, w: number, h: number): Float32Array {
     const gl = this.gl;

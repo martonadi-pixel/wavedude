@@ -32,6 +32,24 @@ let background = 1;
 let query = "";
 /** The shell the Sandbox was last opened in (for redrawing it when Simple mode is switched). */
 let shown: Shell | null = null;
+let followsWindow = false;
+
+/** A "Fit window" scene follows the picture's size (a moment after the window or the panels stop changing). */
+function followWindow(sim: Sim): void {
+  if (followsWindow) return;
+  followsWindow = true;
+  let timer = 0;
+  sim.view.resizeListeners.push(() => {
+    clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      if (sim.owner !== "sandbox" || !sim.sceneInfo.fit || size !== "fit" || sim.view.mode3d) return;
+      // never smaller than what holds the objects (the view then zooms out a little instead of cutting them off)
+      const reach = sim.contentReach(), [fw, fh] = dims(sim);
+      const w = Math.max(fw, Math.ceil(2 * reach.x)), hh = Math.max(fh, Math.ceil(2 * reach.y));
+      if (Math.abs(w - sim.scene.width) > 2 || Math.abs(hh - sim.scene.height) > 2) sim.resizeScene(w, hh);
+    }, 250);
+  });
+}
 onSimpleChange(() => { if (shown && shown.sim.owner === "sandbox" && document.getElementById("panel")?.querySelector(".sandbox-tabs")) render(shown); });
 
 export function openSandbox(shell: Shell): void {
@@ -47,6 +65,7 @@ export function openSandbox(shell: Shell): void {
   shell.setHeader(projectBar(sim, () => render(shell)));
   shell.setToolOptions(sandboxToolOptions(sim, () => shell.refreshToolOptions()));
   shown = shell;
+  followWindow(sim);
   render(shell);
 }
 
@@ -89,7 +108,7 @@ function loadStart(sim: Sim): void {
   const { scene, sources, optics } = d.build(w, hh, background);
   scene.edgeOn = sim.scene.edgeOn;
   scene.edge = sim.scene.edge;
-  sim.sceneInfo = { ...newSceneInfo(), background, mode: d.id === "empty" ? "user_defined" : "image", dirty: d.id !== "empty" };
+  sim.sceneInfo = { ...newSceneInfo(), background, mode: d.id === "empty" ? "user_defined" : "image", dirty: d.id !== "empty", fit: size === "fit" };
   sim.load(scene, sources, [], optics ?? []);
   sim.keepBrightness = false;
   // a good brightness from the first frame on
@@ -140,7 +159,7 @@ function render(shell: Shell): void {
       h("label", { class: "field" }, h("span", { class: "lbl" }, h("span", { class: "t" }, "Start from"),
         help("Replaces the scene. The demos are made of objects you can select, move and change; the circuits are ready-made computers of light.")), startSel),
       CIRCUITS.some(c => c.id === start) ? null : adv(select({ label: "Size (cells)", options: SIZES, value: size,
-        help: "Number of grid cells. Bigger shows finer detail but is slower. “Fit window” uses one cell per screen pixel.", onChange: v => { size = v; loadStart(sim); rerender(); } })),
+        help: "Number of grid cells. Bigger shows finer detail but is slower. “Fit window” uses one cell per screen pixel and follows the window's size.", onChange: v => { size = v; loadStart(sim); rerender(); } })),
       start === "empty" ? adv(slider({ label: "Background refractive index", min: 1, max: 2.55, step: 0.01, value: background, help: "Index of the empty scene (the Windows app allows 1.00–2.55).",
         onInput: v => { background = v; }, onChange: () => { loadStart(sim); } })) : null,
       check({ label: "Damping edge", value: sim.scene.edgeOn, help: "An absorbing border so waves leave the picture instead of bouncing back off the edges.",

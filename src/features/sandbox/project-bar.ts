@@ -61,12 +61,15 @@ export function projectBar(sim: Sim, opened: () => void): HTMLElement {
     document.addEventListener("pointerdown", close);
     pop.addEventListener("keydown", e => { if (e.key === "Escape") pop.remove(); });
   });
-  return h("div", { class: "project-bar" },
-    h("span", { class: "eyebrow" }, "Project"), name, desc,
-    h("button", { type: "button", class: "primary", onclick: () => void save(), "data-help": "Download the project as a .zip in the Windows app's format (configuration.json + scene image)." }, "💾 Save"),
-    menuButton("📂 Open ▾", () => [
+  // the words go on narrow windows (the icons stay)
+  const open = menuButton("📂 Open ▾", () => [
       { label: "Open a project (.zip or files)…", help: "A .zip of a project folder, or its configuration.json together with the scene image.", run: () => openFiles.click() },
       { label: "Open a project folder…", help: "A project folder of the Windows app.", run: () => openFolder.click() },
-    ], { "data-help": "Open a project: a .zip, its files, or a whole folder." }),
-    openFiles, openFolder);
+    ], { "data-help": "Open a project: a .zip, its files, or a whole folder.", "aria-label": "Open" });
+  open.replaceChildren("📂", h("span", { class: "bl" }, " Open"), " ▾");
+  return h("div", { class: "project-bar" },
+    h("span", { class: "eyebrow" }, "Project"), name, desc,
+    h("button", { type: "button", class: "primary", "aria-label": "Save", onclick: () => void save(), "data-help": "Download the project as a .zip in the Windows app's format (configuration.json + scene image)." },
+      "💾", h("span", { class: "bl" }, " Save")),
+    open, openFiles, openFolder);
 }
