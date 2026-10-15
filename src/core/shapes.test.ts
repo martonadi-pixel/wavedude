@@ -58,3 +58,22 @@ describe("shapes", () => {
     expect(c.x).toBe(15);
   });
 });
+
+describe("smooth glass edges", () => {
+  it("a glass disc holds the right amount of glass (n² summed over the cells) and edge cells lie in between", () => {
+    const sc = new Scene(100, 100), n = 1.5, r = 20.3;
+    drawShape(sc, newShape("ellipse", { x: 50.2, y: 49.7, length: 2 * r, width: 2 * r, material: "glass", n }), all);
+    let eps = 0, between = 0;
+    for (let i = 0; i < sc.n.length; i++) { eps += sc.n[i] ** 2 - 1; if (sc.n[i] > 1.001 && sc.n[i] < n - 0.001) between++; }
+    // a staircase is off by up to a few %; sub-cell averaging gets within a fraction of a percent
+    expect(eps / (Math.PI * r * r * (n * n - 1))).toBeCloseTo(1, 2);
+    expect(between).toBeGreaterThan(100);
+  });
+
+  it("an edge on a cell border stays sharp", () => {
+    const sc = new Scene(60, 60);
+    drawShape(sc, newShape("box", { x: 30, y: 30, length: 20, width: 20, material: "glass", n: 1.6, filled: true }), all);
+    const values = new Set(Array.from(sc.n, v => v.toFixed(3)));
+    expect([...values].sort()).toEqual(["1.000", "1.600"]);
+  });
+});

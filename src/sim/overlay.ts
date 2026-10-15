@@ -50,6 +50,7 @@ export function buildOverlay(sim: Sim): Overlay {
   o.labels.push(...sim.annotations.labels);
   o.arrows.push(...sim.annotations.arrows);
   o.boxes.push(...sim.annotations.boxes);
+  o.dots.push(...sim.annotations.dots);
   drafts(sim, o);
   hover(sim, o);
   brush(sim, o);

@@ -179,3 +179,29 @@ export class Scene {
       for (let x = x0; x <= x1; x++) if (inside(x + 0.5, y + 0.5)) this.setCell(y * this.width + x, m);
   }
 }
+
+/** Sample points per side of a cell that an outline of glass cuts through. */
+const SUB = 4;
+
+/**
+ * Draws glass with smooth edges into the cell (x, y): nAt gives the glass's index at a point (null outside it). A cell
+ * wholly inside gets the index at its centre; a cell the outline cuts through gets the average of n² (the material's
+ * permittivity) of the glass and of what was there already, over SUB × SUB points. Waves then see a curved or slanted
+ * surface where it really is, not as a staircase of whole cells.
+ */
+export function drawGlassCell(scene: Scene, x: number, y: number, nAt: (x: number, y: number) => number | null): void {
+  const i = y * scene.width + x, c = nAt(x + 0.5, y + 0.5), e = 0.01;
+  const inside = (m: number | null) => m !== null;
+  if ([nAt(x + e, y + e), nAt(x + 1 - e, y + e), nAt(x + e, y + 1 - e), nAt(x + 1 - e, y + 1 - e)].every(m => inside(m) === inside(c))) {
+    if (c !== null) scene.setCell(i, { n: c });
+    return;
+  }
+  const n0 = scene.n[i];
+  let sum = 0;
+  for (let sy = 0; sy < SUB; sy++)
+    for (let sx = 0; sx < SUB; sx++) {
+      const m = nAt(x + (sx + 0.5) / SUB, y + (sy + 0.5) / SUB);
+      sum += m === null ? n0 * n0 : m * m;
+    }
+  scene.setCell(i, { n: Math.sqrt(sum / (SUB * SUB)) });
+}

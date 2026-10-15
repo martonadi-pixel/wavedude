@@ -29,9 +29,11 @@ export interface Overlay {
   paths: { pts: Pt[]; closed?: boolean; width?: number; fill?: boolean; color: string; solid?: boolean }[];
   /** Drag handles of the selected object: small squares (ends, sizes), round ones turn it. */
   handles: (Pt & { round?: boolean })[];
+  /** Small dots, all in one colour per batch (where particles hit a screen). */
+  dots: { pts: Pt[]; color: string }[];
 }
 
-export const emptyOverlay = (): Overlay => ({ sources: [], pointProbes: [], lineProbes: [], labels: [], arrows: [], boxes: [], paths: [], handles: [] });
+export const emptyOverlay = (): Overlay => ({ sources: [], pointProbes: [], lineProbes: [], labels: [], arrows: [], boxes: [], paths: [], handles: [], dots: [] });
 
 export interface Measure {
   ruler: { a: Pt; b: Pt } | null;
@@ -371,6 +373,14 @@ export class Viewport {
       c.stroke();
     }
 
+    for (const d of o.dots) {
+      // one path per batch: thousands of dots stay cheap
+      const r = Math.max(0.9, Math.min(3, 0.6 * cellPx));
+      c.fillStyle = d.color;
+      c.beginPath();
+      for (const p of d.pts) { const q = S(p.x, p.y); c.rect(q.x - r, q.y - r, 2 * r, 2 * r); }
+      c.fill();
+    }
     for (const a of o.arrows) arrow(c, S(a.x0, a.y0), S(a.x1, a.y1), a.color ?? "#fff", a.dashed);
     for (const p of o.paths) {
       if (p.pts.length < 2) continue;
