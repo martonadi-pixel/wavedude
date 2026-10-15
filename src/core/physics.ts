@@ -23,7 +23,7 @@ export type Stencil = "3x3" | "4th";
  * so that kernel is 0.316 times the true Laplacian for long waves.
  * 4th order cross stencil: (1/6) cos 2k - (8/3) cos k + 5/2, about k^2.
  */
-function laplacianMagnitude(k: number, stencil: Stencil): number {
+export function laplacianMagnitude(k: number, stencil: Stencil): number {
   if (stencil === "3x3") return 1.264 * Math.sin(k / 2) ** 2;
   // the cross, scaled by the 3x3 kernel's long-wave factor 0.316 (same wave speed for both stencils)
   return 0.316 * ((1 / 6) * Math.cos(2 * k) - (8 / 3) * Math.cos(k) + 2.5);
