@@ -2,7 +2,7 @@
 // GPL-3.0-or-later.
 
 import { EXPERIMENTS } from "../experiments";
-import { LEVELS, Level, Experiment, Values, Measured } from "../experiments/types";
+import { LEVELS, type Level, type Experiment, type Values, type Measured } from "../experiments/types";
 import { pulseMarkers } from "../experiments/advanced";
 import { angleDeg } from "../view/viewport";
 import { h, slider, fold, loadPref, savePref } from "./dom";

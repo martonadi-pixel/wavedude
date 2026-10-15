@@ -2,9 +2,9 @@
 // GPL-3.0-or-later.
 
 import { Scene, BARRIER, glass } from "../engine/scene";
-import { SourceSpec, newSource, elementsOf, newMotion } from "../engine/sources";
+import { type SourceSpec, newSource, elementsOf, newMotion } from "../engine/sources";
 import { levelColor } from "../engine/physics";
-import { OpticSpec, OPTIC_KINDS, newOptic, opticBounds, opticInfo } from "../engine/optics";
+import { type OpticSpec, OPTIC_KINDS, newOptic, opticBounds, opticInfo } from "../engine/optics";
 import type { Quantity } from "../engine/engine";
 import { DEFAULT_BRIGHTNESS_PCT, type Measurement } from "../sim";
 import { openProject, applyProject, saveProject, decodeImage, newMeta, newSceneInfo } from "../project/project";

@@ -20,9 +20,9 @@ import type { Action, Experiment, Step, Values } from "./types";
 import type { Sim } from "../sim";
 import {
   buildGate, buildHalfAdder, buildFullAdder, buildTransistor, buildLatch, buildRegister, writeRegister, registerValue, circuit,
-  GateKind, Bit, GATE_SETTLE, ADDER_SETTLE, LATCH_SETTLE, PRESS, LOW, HIGH,
+  type GateKind, type Bit, GATE_SETTLE, ADDER_SETTLE, LATCH_SETTLE, PRESS, LOW, HIGH,
 } from "../logic/builds";
-import { ledHtml, meterHtml, Circuit } from "../logic/circuit";
+import { ledHtml, meterHtml, type Circuit } from "../logic/circuit";
 
 /**
  * The view of the computer. It runs at the app's calm 1x, but after each change of the inputs it fast-forwards at

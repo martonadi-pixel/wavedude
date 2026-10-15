@@ -2,14 +2,14 @@
 // frame loop. The experiments and the sandbox both drive this.
 // GPL-3.0-or-later.
 
-import { WaveEngine, Quantity, DisplayOptions } from "./engine/engine";
-import { Scene, Material, BARRIER, VACUUM } from "./engine/scene";
-import { SourceSpec, elementsOf, newSource, movingElements, motionPosition } from "./engine/sources";
-import { OpticSpec, newOptic, drawOptic, opticBounds, opticHit, Housing, drawHousing, housingBounds } from "./engine/optics";
-import { Viewport, Tool, Pt, emptyOverlay, Overlay } from "./view/viewport";
-import { Stencil, continuumWavelength, continuumSpeed, omegaOfLevel } from "./engine/physics";
-import { Stamp, PaintShape, paintStamp, stampBounds, stampDepth, snapAngle } from "./engine/paint";
-import { SceneInfo, ProjectMeta, newSceneInfo, newMeta } from "./project/project";
+import { WaveEngine, type Quantity, type DisplayOptions } from "./engine/engine";
+import { Scene, type Material, BARRIER, VACUUM } from "./engine/scene";
+import { type SourceSpec, elementsOf, newSource, movingElements, motionPosition } from "./engine/sources";
+import { type OpticSpec, newOptic, drawOptic, opticBounds, opticHit, type Housing, drawHousing, housingBounds } from "./engine/optics";
+import { Viewport, type Tool, type Pt, emptyOverlay, type Overlay } from "./view/viewport";
+import { type Stencil, continuumWavelength, continuumSpeed, omegaOfLevel } from "./engine/physics";
+import { type Stamp, type PaintShape, paintStamp, stampBounds, stampDepth, snapAngle } from "./engine/paint";
+import { type SceneInfo, type ProjectMeta, newSceneInfo, newMeta } from "./project/project";
 import type { Circuit, Detector } from "./logic/circuit";
 import { isLogicTool, logicTool, logicOverlay } from "./logic/editor";
 

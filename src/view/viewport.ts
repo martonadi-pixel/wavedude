@@ -2,9 +2,9 @@
 // and turning pointer input into tool actions in cell coordinates.
 // GPL-3.0-or-later.
 
-import { WaveEngine, DisplayOptions } from "../engine/engine";
+import { type WaveEngine, type DisplayOptions } from "../engine/engine";
 import { levelColor } from "../engine/physics";
-import { lookAt, multiply, perspective, Vec3 } from "./mat4";
+import { lookAt, multiply, perspective, type Vec3 } from "./mat4";
 
 export type Tool =
   | "pan" | "ruler" | "protractor"

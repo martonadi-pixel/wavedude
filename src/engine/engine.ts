@@ -2,9 +2,9 @@
 // GPL-3.0-or-later. Simulation core based on WaveSimulator2D by 0x23.
 
 import { DISPLAY_FS, MESH_FS, MESH_VS, PROBE_LINE_FS, PROBE_POINT_FS, STEP_FS, VS } from "./shaders";
-import { Scene } from "./scene";
-import { SourceElement } from "./sources";
-import { FREQUENCY_SCALE, omegaOfLevel, Stencil, subStepsFor } from "./physics";
+import { type Scene } from "./scene";
+import { type SourceElement } from "./sources";
+import { FREQUENCY_SCALE, omegaOfLevel, type Stencil, subStepsFor } from "./physics";
 
 export type Quantity = "field" | "intensity";
 export interface PointProbe { x: number; y: number; quantity: Quantity }

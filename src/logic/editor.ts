@@ -5,8 +5,8 @@
 import type { Sim } from "../sim";
 import type { Overlay, Pt, Tool } from "../view/viewport";
 import type { Scene } from "../engine/scene";
-import { newSource, SourceSpec } from "../engine/sources";
-import { Circuit, Detector } from "./circuit";
+import { newSource, type SourceSpec } from "../engine/sources";
+import { Circuit, type Detector } from "./circuit";
 import { CORE_W, LEVEL, LATCH_UNIT } from "./parts";
 import { snapAngle } from "../engine/paint";
 

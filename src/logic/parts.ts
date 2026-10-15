@@ -14,8 +14,8 @@
 //    Amplitudes add: 1 + 1 = 2, so the intensity is 4 times one input, and 1 - 1 = 0.
 //  - A change at an input reaches the detector about 800 steps later; the reading then settles within ~150 steps.
 
-import { Scene, Material } from "../engine/scene";
-import { newSource, SourceSpec } from "../engine/sources";
+import { type Scene, type Material } from "../engine/scene";
+import { newSource, type SourceSpec } from "../engine/sources";
 import type { Area } from "./circuit";
 
 /** Frequency level of every wave in the computer (wavelength 14.9 cells in empty space, about 10 in the glass). */

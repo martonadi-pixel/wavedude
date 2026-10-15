@@ -4,10 +4,10 @@
 // GPL-3.0-or-later.
 
 import { Scene } from "../engine/scene";
-import { SourceSpec, SourceElement, SourceMotion, newSource, newMotion, elementsOf } from "../engine/sources";
+import { type SourceSpec, type SourceElement, type SourceMotion, newSource, newMotion, elementsOf } from "../engine/sources";
 import type { Sim, NewProbe, Measurement } from "../sim";
-import { readZip, writeZip, ZipEntry } from "./zip";
-import { Circuit, LogicJSON } from "../logic/circuit";
+import { readZip, writeZip, type ZipEntry } from "./zip";
+import { Circuit, type LogicJSON } from "../logic/circuit";
 
 type Dict = Record<string, unknown>;
 
@@ -278,6 +278,7 @@ export function applyProject(sim: Sim, p: LoadedProject): void {
 
 // ------------------------------------------------------------------------------------------ save
 
+// eslint-disable-next-line no-control-regex -- control characters are not allowed in file names
 const safeName = (s: string) => s.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").trim() || "Project";
 
 /** The project as a .zip of its folder, readable by the Windows app. */

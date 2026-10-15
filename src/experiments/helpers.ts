@@ -2,7 +2,7 @@
 // GPL-3.0-or-later.
 
 import { c2OfIndex, omegaOfLevel, wavelength } from "../engine/physics";
-import { newSource, SourceSpec } from "../engine/sources";
+import { newSource, type SourceSpec } from "../engine/sources";
 import type { CheckResult } from "./types";
 
 /** Wavelength in cells of a source with this level in a medium of index n (the grid's own dispersion relation). */

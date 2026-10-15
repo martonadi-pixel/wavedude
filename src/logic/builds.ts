@@ -5,7 +5,7 @@
 import { Scene } from "../engine/scene";
 import type { SourceSpec } from "../engine/sources";
 import type { Sim } from "../sim";
-import { Circuit, Detector } from "./circuit";
+import { Circuit, type Detector } from "./circuit";
 import { combiner, emitter, latch, guide, absorbingEnd, across, COMBINER_UNIT, LATCH_UNIT, LATCH_XD, LATCH_XE, LATCH_XO, EDGE } from "./parts";
 
 export type GateKind = "xor" | "andor" | "not";

@@ -8,7 +8,7 @@ import type { Tool } from "../view/viewport";
 import { newSceneInfo } from "../project/project";
 import type { BitSwitch, Circuit, Detector, Transistor } from "../logic/circuit";
 import { buildGate, buildHalfAdder, buildFullAdder, buildTransistor, buildLatch, buildRegister, PRESS } from "../logic/builds";
-import { logicTemplate, logicSelected, selectPart, addEmitterTo, addingTo, LogicTool } from "../logic/editor";
+import { logicTemplate, logicSelected, selectPart, addEmitterTo, addingTo, type LogicTool } from "../logic/editor";
 import { h, help, slider, check, segmented, fold } from "./dom";
 import type { Shell } from "./shell";
 
