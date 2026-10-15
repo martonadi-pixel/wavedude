@@ -1,6 +1,6 @@
 # Wave Dude 2D for the web
 
-An interactive 2D wave simulator that runs in the browser (WebGL2, nothing to install). Draw a scene, add wave sources, glass, mirrors and walls, and watch the waves move, bend, interfere and diffract. It comes with guided experiments for every level, from kids to researchers, a free sandbox, and "How it works" pages on the physics, the maths and the code.
+An interactive 2D & 3D wave simulator that runs in the browser (WebGL2, nothing to install). Draw a scene, add wave sources, glass, mirrors and walls, and watch the waves move, bend, interfere and diffract. It comes with guided experiments for every level, from kids to researchers, a free sandbox, and "How it works" pages on the physics, the maths and the code.
 
 **Status:** not online yet. It will be hosted soon; until then you can run it yourself (see below).
 
