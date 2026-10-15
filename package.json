@@ -10,8 +10,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm run lint && npm run test",
-    "build": "tsc --noEmit && vite build",
+    "cycles": "node scripts/check-cycles.mjs",
+    "check": "npm run typecheck && npm run lint && npm run cycles && npm run test",    "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
