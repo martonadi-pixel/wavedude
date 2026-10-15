@@ -110,6 +110,7 @@ function loadStart(sim: Sim): void {
   scene.edge = sim.scene.edge;
   sim.sceneInfo = { ...newSceneInfo(), background, mode: d.id === "empty" ? "user_defined" : "image", dirty: d.id !== "empty", fit: size === "fit" };
   sim.load(scene, sources, [], optics ?? []);
+  if (d.white) sim.setWhiteLight(true, d.white);
   sim.keepBrightness = false;
   // a good brightness from the first frame on
   sim.calibrateBrightness();
@@ -162,6 +163,12 @@ function render(shell: Shell): void {
         help: "Number of grid cells. Bigger shows finer detail but is slower. “Fit window” uses one cell per screen pixel and follows the window's size.", onChange: v => { size = v; loadStart(sim); rerender(); } })),
       start === "empty" ? adv(slider({ label: "Background refractive index", min: 1, max: 2.55, step: 0.01, value: background, help: "Index of the empty scene (the Windows app allows 1.00–2.55).",
         onInput: v => { background = v; }, onChange: () => { loadStart(sim); } })) : null,
+      check({ label: "🌈 White light: all colours at once", value: sim.whiteLight,
+        help: "Every source sends eight colours, from violet to deep red, and the picture shows their real mix. Glass slows violet more than red (dispersion): a prism makes a rainbow, a thin film shows colours. Probes and graphs measure single-colour light only. Uses more of the graphics card's memory.",
+        onChange: v => { sim.setWhiteLight(v); if (v && !sim.keepBrightness) sim.calibrateBrightness(); rerender(); } }),
+      sim.whiteLight ? slider({ label: "Glass dispersion", min: 1, max: 20, step: 1, value: sim.dispersion, format: v => (v === 1 ? "real glass" : `${v} × real glass`),
+        help: "How much more glass slows violet than red, compared with ordinary crown glass. Real glass spreads the colours only slightly, too little to see in a picture a few hundredths of a millimetre wide.",
+        onInput: () => {}, onChange: v => sim.setWhiteLight(true, v) }) : null,
       check({ label: "Damping edge", value: sim.scene.edgeOn, help: "An absorbing border so waves leave the picture instead of bouncing back off the edges.",
         onChange: v => { sim.scene.edgeOn = v; sim.scene.applyEdge(); sim.engine.updateMaterial(); } }),
       adv(slider({ label: "Edge thickness", min: 1, max: 160, step: 1, value: sim.scene.edge, unit: " cells", help: "Thicker absorbs long waves better.",

@@ -9,7 +9,13 @@ import { type OpticSpec, newOptic } from "../../core/optics";
 import { newShape } from "../../core/shapes";
 import { buildGate, buildHalfAdder, buildFullAdder, buildTransistor, buildLatch, buildRegister } from "../../circuits/builds";
 
-export interface Demo { id: string; label: string; build: (w: number, h: number, background: number) => { scene: Scene; sources: SourceSpec[]; optics?: OpticSpec[] } }
+export interface Demo {
+  id: string;
+  label: string;
+  build: (w: number, h: number, background: number) => { scene: Scene; sources: SourceSpec[]; optics?: OpticSpec[] };
+  /** Switches white light on, with this glass dispersion (× real glass). */
+  white?: number;
+}
 
 export const DEMOS: Demo[] = [
   { id: "empty", label: "Empty", build: (w, hh, bg) => ({ scene: new Scene(w, hh, bg), sources: [] }) },
@@ -44,6 +50,18 @@ export const DEMOS: Demo[] = [
         // a wide beam and a strong lens: a tight focus in the middle of the picture, then the beam spreads again
         sources: [newSource({ name: "Laser", kind: "laser", x: Math.round(w * 0.12), y: cy, level: 60, beamWidth: Math.max(20, Math.round(hh * 0.15)) })],
         optics: [newOptic("convex", { x: Math.round(w * 0.38), y: cy, size: Math.round(hh * 0.62), radius: Math.round(hh * 0.36) })],
+      };
+    },
+  },
+  {
+    id: "rainbow", label: "Rainbow: white light through a prism", white: 10, build: (w, hh) => {
+      // a 60° prism, and white light onto its left face at minimum deviation (49.3° from the face's normal)
+      const half = Math.round(Math.min(hh * 0.27, w * 0.17)), cx = Math.round(w * 0.36), cy = Math.round(hh * 0.42);
+      const a = (-19.3 * Math.PI) / 180, fx = cx - half * Math.tan(Math.PI / 6), back = Math.min(cx * 0.8, half * 1.5);
+      return {
+        scene: new Scene(w, hh),
+        sources: [newSource({ name: "White light", kind: "laser", x: Math.round(fx - back * Math.cos(a)), y: Math.round(cy - back * Math.sin(a)), angleDeg: -19.3, level: 40, beamWidth: Math.max(15, Math.round(half * 0.38)) })],
+        optics: [newOptic("prism", { name: "Prism", x: cx, y: cy, size: 2 * half, radius: 60, n: 1.5 })],
       };
     },
   },

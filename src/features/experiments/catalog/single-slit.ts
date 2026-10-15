@@ -19,7 +19,7 @@ export const singleSlit: Experiment = {
   level: "school",
   minutes: 15,
   summary: "Waves squeezing through a gap spread out. Measure how much — narrow gaps spread more.",
-  goals: ["Waves bend around the edges of a gap (diffraction)", "Narrower gaps make the waves spread more", "The first dark band is at sin θ = λ / a"],
+  goals: ["Waves bend around the edges of a gap (diffraction)", "Narrower gaps make the waves spread more", "The first dark band is at sin θ = λ / a", "For particles this is Heisenberg's uncertainty principle"],
   readMore: [
     { page: "how-waves-behave/diffraction", label: "Diffraction" },
     { page: "maths-of-waves/interference-diffraction", label: "Interference and diffraction formulas" },
@@ -76,6 +76,21 @@ export const singleSlit: Experiment = {
         options: ["Less", "More", "The same"],
         answer: 1,
         explain: "More: sin θ₁ = λ / a doubles. The smaller the opening compared with the wavelength, the more the wave spreads.",
+      },
+    },
+    {
+      title: "Squeeze it and it spreads: Heisenberg",
+      html: () => `<p>Physicists were puzzled when they found that electrons and photons, which arrive as single particles, spread behind a gap exactly like this wave. Think of one particle going through:</p>
+             <ul><li>Behind the gap we know <b>where</b> it went through, to within the gap's width a. The narrower the gap, the better we know its position.</li>
+             <li>But it leaves the gap in a direction we cannot predict, anywhere in the bright fan: its sideways speed is uncertain. And the narrower the gap, the wider the fan.</li></ul>
+             <p>So pinning down where a particle is makes it less certain where it is going, and the other way round. For this gap the product does not depend on a at all:</p>
+             <p class="formula">a · sin θ₁ = λ &nbsp;→&nbsp; (position spread) × (spread of sideways momentum) ≈ a × (h / λ) sin θ₁ = h</p>
+             <p>since a particle with wavelength λ has momentum h / λ (de Broglie). This is <b>Heisenberg's uncertainty principle</b> (1927), seen in the simplest possible experiment. It is not a fault of our instruments: it is how waves work, and every particle has a wave.</p>
+             <p>Change the gap and watch the table: a changes, θ₁ changes, a · sin θ₁ stays one wavelength (${f1(lam(LEVEL))} cells).</p>`,
+      readout: (_sim, p) => {
+        const t = firstMinDeg(p), sin = lam(LEVEL) / p.a;
+        return `<table class="ro-table"><tr><th>gap a</th><th>first dark band θ₁</th><th>a · sin θ₁</th></tr>` +
+          `<tr><td>${p.a} cells</td><td>${Number.isFinite(t) ? `${f1(t)}°` : "none (gap under one wavelength)"}</td><td>${Number.isFinite(t) ? `${f1(p.a * sin)} cells = λ` : "—"}</td></tr></table>`;
       },
     },
   ],

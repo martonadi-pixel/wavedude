@@ -41,22 +41,22 @@ The image is nginx (unprivileged, port 8080) serving the build; `/healthz` answe
 
 | Path | What |
 |---|---|
-| `src/core/` | Pure maths and data (no browser): `physics.ts` (dispersion relation, wavelength, velocities), `scene.ts` (cells, scene-image rules, damping edge), `sources.ts` (point/array/line/laser sources and moving sources), `optics.ts` (lenses, mirrors, prisms…), `shapes.ts` (walls, glass and absorbers as objects), `paint.ts` (brush, lines, boxes, graded absorbers), `math.ts` (angles, averages, spectral peaks). Unit-tested. |
-| `src/engine/` | The GPU: `shaders.ts` (wave step, probes, 2D/3D display) and `engine.ts` (textures, stepping, read-back) |
+| `src/core/` | Pure maths and data (no browser): `physics.ts` (dispersion relation, wavelength, velocities), `scene.ts` (cells, scene-image rules, damping edge), `sources.ts` (point/array/line/laser sources and moving sources), `optics.ts` (lenses, mirrors, prisms…), `shapes.ts` (walls, glass and absorbers as objects), `paint.ts` (brush, lines, boxes, graded absorbers), `spectrum.ts` (white light: the eight wavelengths, glass dispersion, CIE 1931 colours), `math.ts` (angles, averages, spectral peaks). Unit-tested. |
+| `src/engine/` | The GPU: `shaders.ts` (sources pass, wave step, probes, 2D/3D display), `spectral.ts` (white light: eight wavelengths side by side, true-colour display), `gl.ts` (programs, textures) and `engine.ts` (textures, stepping, read-back) |
 | `src/sim/` | One running simulation: frame loop, tools, probes, overlay |
 | `src/view/` | Zoom/pan viewport with overlay (ruler, protractor, markers), graphs |
 | `src/circuits/` | Computing with waves: bit switches, detectors, wave transistors, ready-made circuits, the sandbox's logic tools |
 | `src/project/` | Opening and saving Windows projects (`project.ts`) and a small zip reader/writer (`zip.ts`) |
 | `src/components/` | Reusable UI pieces |
 | `src/app/` | The app shell (what the pages may use of the main window) |
-| `src/features/experiments/` | The guided experiments: the page (`guide.ts`), the registry (`index.ts`), helpers for writing them (`helpers.ts`: wavelengths, sources, probes, objects, `look()`) and the experiments themselves in `catalog/`, one file each named after its id — each a data object with steps, predictions and checks |
+| `src/features/experiments/` | The guided experiments: the page (`guide.ts`), the registry (`index.ts`), helpers for writing them (`helpers.ts`: wavelengths, sources, probes, objects, `look()`; `colour.ts`: white-light probes, spectrum bars; `particles.ts`: particles landing by Born's rule, the which-way detector) and the experiments themselves in `catalog/`, one file each named after its id — each a data object with steps, predictions and checks |
 | `src/features/sandbox/` | The sandbox page, its logic panel and MP4 export (WebCodecs via [Mediabunny](https://mediabunny.dev), MPL-2.0, loaded only when recording) |
 | `src/features/learn/` | The "How it works" library: categories in `content/*.ts`, each page with kids / school / university / research sections |
 | `src/features/colors/` | The colour scheme editor |
 | `src/styles/` | Stylesheets |
 | `public/colorschemes/` | The colour schemes of the Windows app, unchanged |
 | `scripts/` | `check-cycles.mjs`: fails on circular imports in `src/` (part of `npm run check`, with lint rules that keep each folder above to the layers below it) |
-| `tests/e2e/` | Browser tests: headless Chrome drives the built site and checks the numbers (experiments, sandbox objects, circuits, exposure, 3D). `npm run build && npm run preview`, then `npm run e2e` (or `npm run e2e -- logic famous`); `E2E_BASE` sets the address, `E2E_PLAYWRIGHT_FROM` a folder whose `node_modules` has `playwright-core` |
+| `tests/e2e/` | Browser tests: headless Chrome drives the built site and checks the numbers (experiments, white light and colours, the which-way detector, sandbox objects, circuits, exposure, layout, 3D). `npm run build && npm run preview`, then `npm run e2e` (or `npm run e2e -- logic famous`); `E2E_BASE` sets the address, `E2E_PLAYWRIGHT_FROM` a folder whose `node_modules` has `playwright-core` |
 
 Checks: `npm run check` (type-check, lint, unit tests); `npm run build` for the site.
 

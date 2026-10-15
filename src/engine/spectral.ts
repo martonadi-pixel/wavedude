@@ -10,7 +10,7 @@
 
 import { SOURCE_GLSL, displayShader } from "./shaders";
 import { type Program, bind, framebuffer, program, texture } from "./gl";
-import { CHANNELS, CHANNEL_RGB, SPECTRAL_NM, dispersionFactor, omegaForWavelength, wavelengthCells } from "../core/spectrum";
+import { CHANNELS, CHANNEL_RGB, SOURCE_GAIN, SPECTRAL_NM, dispersionFactor, omegaForWavelength, wavelengthCells } from "../core/spectrum";
 import type { Stencil } from "../core/physics";
 
 const GROUPS = CHANNELS / 4;
@@ -20,7 +20,7 @@ const SOURCES_FS = `#version 300 es
 precision highp float;
 uniform sampler2D cur;
 uniform float srcBlend;
-uniform vec4 omega;
+uniform vec4 omega, gain;
 out vec4 o;
 ${SOURCE_GLSL}
 void main() {
@@ -31,7 +31,7 @@ void main() {
   if (a.a > 0.5) {
     vec4 b = texelFetch(srcB, p, 0);
     if (sourceEnvelope(a, b, e)) {
-      vec4 v = sin(a.b + omega * t) * e;
+      vec4 v = sin(a.b + omega * t) * e * gain;
       u = b.a > 0.0 ? u + v * b.a * srcBlend * 10.0 : u * (1.0 - srcBlend) + v * srcBlend;
     }
   }
@@ -208,6 +208,7 @@ export class SpectralField {
       gl.uniform1f(S.u.t, s.time);
       gl.uniform1f(S.u.srcBlend, 0.1 / sub);
       gl.uniform4f(S.u.omega, om[4 * g], om[4 * g + 1], om[4 * g + 2], om[4 * g + 3]);
+      gl.uniform4f(S.u.gain, SOURCE_GAIN[4 * g], SOURCE_GAIN[4 * g + 1], SOURCE_GAIN[4 * g + 2], SOURCE_GAIN[4 * g + 3]);
       bind(gl, 0, tex[ord[1]]);
       bind(gl, 2, s.srcA);
       bind(gl, 3, s.srcB);

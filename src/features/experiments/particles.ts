@@ -86,17 +86,19 @@ export class ParticleScreen {
   }
 
   /**
-   * How clear the stripes are among the dots, from 0 (none) to 1: the contrast (max − min) / (max + min) of the
-   * counts in bins a sixth of a stripe wide, over the middle ± `stripes` stripes. NaN while there are too few dots.
+   * How clear the stripes are among the dots, from 0 (none) to 1: for dots spread as 1 + V cos(2π x / spacing), V. It
+   * is the share of the stripes' own frequency in the dots within ± `stripes` stripes of the centre (a whole number of
+   * stripes), so the screen's slow brightening towards the middle does not count. NaN while there are too few dots.
    */
   contrast(centre: number, spacing: number, stripes = 1.5): number {
-    const bin = spacing / 6, lo = centre - stripes * spacing, nb = Math.max(1, Math.round((2 * stripes * spacing) / bin));
-    const counts = new Array<number>(nb).fill(0);
-    let inside = 0;
-    for (const a of this.hits) { const b = Math.floor((a - lo) / bin); if (b >= 0 && b < nb) { counts[b]++; inside++; } }
-    if (inside < 30 * nb) return NaN;
-    const mx = Math.max(...counts), mn = Math.min(...counts);
-    return (mx - mn) / (mx + mn);
+    let re = 0, im = 0, n = 0;
+    for (const a of this.hits) {
+      const x = a - centre;
+      if (Math.abs(x) > stripes * spacing) continue;
+      const ph = (2 * Math.PI * x) / spacing;
+      re += Math.cos(ph); im += Math.sin(ph); n++;
+    }
+    return n < 400 ? NaN : Math.min(1, (2 * Math.hypot(re, im)) / n);
   }
 }
 

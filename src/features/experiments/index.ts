@@ -7,6 +7,7 @@ import { splash } from "./catalog/splash";
 import { echoes } from "./catalog/echoes";
 import { wavelengthExp } from "./catalog/wavelength";
 import { refraction } from "./catalog/refraction";
+import { prism } from "./catalog/prism";
 import { singleSlit } from "./catalog/single-slit";
 import { doubleSlit } from "./catalog/double-slit";
 import { tir } from "./catalog/total-internal-reflection";
@@ -24,7 +25,7 @@ import { edge } from "./catalog/absorbing-edge";
 
 export const EXPERIMENTS: Experiment[] = [
   splash, echoes,
-  wavelengthExp, refraction, singleSlit, doubleSlit, tir, doppler, arago, thinFilm, waveLogic,
+  wavelengthExp, refraction, prism, singleSlit, doubleSlit, tir, doppler, arago, thinFilm, waveLogic,
   phasedArray, michelson, bragg, comptonExp, waveMemory,
   dispersion, edge,
 ];

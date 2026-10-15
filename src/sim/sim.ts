@@ -618,6 +618,9 @@ export class Sim {
     this.running = true;
   }
 
+  /** Forgets a step that runUntil was running to: the run (if any) goes on instead of stopping there. */
+  cancelRunUntil(): void { this.stepTarget = null; }
+
   onFrame(f: () => void): () => void {
     this.frameListeners.push(f);
     return () => { this.frameListeners = this.frameListeners.filter(g => g !== f); };

@@ -205,7 +205,8 @@ export function openExperiment(shell: Shell, id: string): void {
   function renderStep(enter: boolean): void {
     const st = exp.steps[stepIndex];
     if (enter) {
-      sim.setWhiteLight(st.whiteLight !== undefined, st.whiteLight ?? sim.dispersion);
+      const white = typeof st.whiteLight === "function" ? st.whiteLight(p) : st.whiteLight;
+      sim.setWhiteLight(white !== undefined, white ?? sim.dispersion);
       st.enter?.(sim, p);
       shell.setTools(st.tools ?? []);
     }

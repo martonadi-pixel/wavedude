@@ -18,7 +18,7 @@ export class Toolbar {
   private undoBtn: HTMLButtonElement;
   private redoBtn: HTMLButtonElement;
   private sync: () => void;
-  private last = { mode: "", spf: 0, pct: 0, outlines: false, dim: "" };
+  private last = { mode: "", spf: 0, pct: 0, outlines: false, dim: "", white: false };
   /** Called when the 2D / 3D view changes (the rail is put away in 3D). */
   onDim: (d: "2d" | "3d") => void = () => {};
 
@@ -52,6 +52,9 @@ export class Toolbar {
       inten.classList.toggle("on", sim.viewMode === "intensity");
       dim2.classList.toggle("on", sim.dim === "2d");
       dim3.classList.toggle("on", sim.dim === "3d");
+      // the 3D surface shows one wave: white light is seen flat
+      dim3.disabled = sim.whiteLight;
+      dim3.dataset.help = sim.whiteLight ? "3D shows a single colour's wave: switch white light off (Scene tab) to use it." : "3D view: the waves as a moving surface. Drag to turn, right-drag to move, wheel to zoom.";
       heightGrp.hidden = sim.dim === "2d";
       outlines.classList.toggle("on", sim.showOutlines);
       outlines.setAttribute("aria-pressed", String(sim.showOutlines));
@@ -59,7 +62,7 @@ export class Toolbar {
       brightOut.textContent = pctText(sim.brightnessPct);
       speed.value = String(speedIndex(sim.stepsPerFrame));
       speedOut.textContent = speedText(sim.stepsPerFrame);
-      this.last = { mode: sim.viewMode, spf: sim.stepsPerFrame, pct: sim.brightnessPct, outlines: sim.showOutlines, dim: sim.dim };
+      this.last = { mode: sim.viewMode, spf: sim.stepsPerFrame, pct: sim.brightnessPct, outlines: sim.showOutlines, dim: sim.dim, white: sim.whiteLight };
     };
     this.el = h("div", { id: "toolbar", class: "toolbar" },
       h("div", { class: "grp" }, this.runBtn,
@@ -101,7 +104,7 @@ export class Toolbar {
     // a new scene waits for the reader: the Run button says so
     this.runBtn.classList.toggle("waiting", sim.held && !sim.running);
     this.stepOut.textContent = `step ${sim.time.toLocaleString()}${sim.preparing ? " · fast-forward ⏩" : ""}`;
-    if (sim.viewMode !== l.mode || sim.stepsPerFrame !== l.spf || sim.brightnessPct !== l.pct || sim.showOutlines !== l.outlines || sim.dim !== l.dim) this.sync();
+    if (sim.viewMode !== l.mode || sim.stepsPerFrame !== l.spf || sim.brightnessPct !== l.pct || sim.showOutlines !== l.outlines || sim.dim !== l.dim || sim.whiteLight !== l.white) this.sync();
     if (this.undoBtn.disabled === this.sim.undo.canUndo) this.syncUndo();
   }
 }

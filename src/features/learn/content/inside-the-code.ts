@@ -293,18 +293,13 @@ this.cur = 1 - this.cur;</code></pre>
         {
           level: "university",
           html: `
-<p>The whole step is one fragment shader, <code>STEP_FS</code> in <code>src/engine/shaders.ts</code>. It starts with a helper that returns the field as the step should see it:</p>
+<p>A step is two fragment shaders in <code>src/engine/shaders.ts</code>. The first, <code>SOURCES_FS</code>, runs once per step and writes the field with every source applied into a float texture: a source cell is pulled 10% of the way towards its drive value v = A · sin(φ + ω t) · envelope (shared out over the sub-steps), every other cell is copied. In the Windows app this pull is a separate OpenCL kernel, <code>apply_sources</code>, that modifies u in place before <code>wave_step</code>; a fragment shader cannot write to the texture it reads, so the web version writes a copy. (It used to fold the pull into every read of the step instead, looking the sources up nine times per cell; the separate pass is about 35% faster.)</p>
+<p>The step itself, <code>STEP_FS</code>, starts with a helper that returns the field as the step should see it:</p>
 <pre><code>float U(ivec2 p) {
   if (p.x &lt; 0 || p.y &lt; 0 || p.x &gt;= size.x || p.y &gt;= size.y) return 0.0;
-  float u = texelFetch(state, p, 0).r;
-  if (applySrc &gt; 0.5) {
-    vec4 a = texelFetch(srcA, p, 0);
-    float v;
-    if (a.a &gt; 0.5 &amp;&amp; sourceValue(a, texelFetch(srcB, p, 0), v)) u = u * 0.9 + v * 0.1;
-  }
-  return u;
+  return applySrc &gt; 0.5 ? texelFetch(field, p, 0).r : texelFetch(state, p, 0).r;
 }</code></pre>
-<p>Outside the grid the field is 0 (a fixed, reflecting boundary; the damping edge sits just inside it). A source cell is pulled 10% of the way towards its drive value v = A · sin(φ + ω t) · envelope. In the Windows app this pull is a separate OpenCL kernel, <code>apply_sources</code>, that modifies u in place before <code>wave_step</code>. A fragment shader cannot write to the texture it reads, so the web version folds the pull into every read instead: the cell itself and all its neighbours see the pulled value, which is exactly what the in-place version produces.</p>
+<p>Outside the grid the field is 0 (a fixed, reflecting boundary; the damping edge sits just inside it). On the first sub-step it reads the field the sources pass made; on later sub-steps the plain field.</p>
 <p>Then the Laplacian-like sum, with the optional 4th-order cross everywhere except the outermost ring (two cells away it reads the zero border, as the OpenCL kernel does):</p>
 <pre><code>if (use4th &gt; 0.5 &amp;&amp; p.x &gt;= 1 &amp;&amp; p.y &gt;= 1 &amp;&amp; p.x &lt; size.x - 1 &amp;&amp; p.y &lt; size.y - 1) {
   lap = 0.316 * ((-1.0 / 12.0) * (U(p + ivec2(-2, 0)) + U(p + ivec2(2, 0)) + U(p + ivec2(0, -2)) + U(p + ivec2(0, 2)))
@@ -820,8 +815,8 @@ export const myEcho: Experiment = {
           html: `
 <table>
 <tr><th>Path</th><th>What</th></tr>
-<tr><td><code>src/core/</code></td><td>pure maths and data, no browser needed: physics (dispersion, wavelengths, velocities), scene cells, sources and moving sources, optical elements, painting (tested with <code>npm test</code>)</td></tr>
-<tr><td><code>src/engine/</code></td><td>the GPU: <code>shaders.ts</code> (step, probes, 2D and 3D display) and <code>engine.ts</code> (textures, stepping, read-back)</td></tr>
+<tr><td><code>src/core/</code></td><td>pure maths and data, no browser needed: physics (dispersion, wavelengths, velocities), scene cells, sources and moving sources, optical elements, painting, white light's colours (CIE 1931) (tested with <code>npm test</code>)</td></tr>
+<tr><td><code>src/engine/</code></td><td>the GPU: <code>shaders.ts</code> (sources pass, step, probes, 2D and 3D display), <code>spectral.ts</code> (white light: eight wavelengths side by side, each with its own speed in glass, shown in true colour) and <code>engine.ts</code> (textures, stepping, read-back)</td></tr>
 <tr><td><code>src/sim/</code></td><td>one running simulation: frame loop, tools, probes, overlay</td></tr>
 <tr><td><code>src/view/</code></td><td>zoom and pan viewport with its overlay, graphs</td></tr>
 <tr><td><code>src/circuits/</code></td><td>computing with waves: switches, detectors, transistors, ready-made circuits</td></tr>

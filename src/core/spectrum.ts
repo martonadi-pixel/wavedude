@@ -18,6 +18,19 @@ export const NM_PER_CELL = 25;
 export const wavelengthCells = (nm: number): number => nm / NM_PER_CELL;
 
 /**
+ * How much harder a white-light source drives each colour, so that white light comes out white (the same power in every
+ * colour). A source cell is pulled a tenth of the way to its value each step, and it follows fast (violet) oscillations
+ * less fully than slow (red) ones: measured, a point source, a line source and a laser radiate 0.63, 0.47 and 0.51 of the
+ * red power in violet. These gains are 1 / √(their average power), scaled to a mean of 1; with them the three are within
+ * about ±12% of flat.
+ */
+const POWER = [0.536, 0.652, 0.748, 0.831, 0.874, 0.911, 0.947, 0.982];
+export const SOURCE_GAIN: readonly number[] = (() => {
+  const g = POWER.map(p => 1 / Math.sqrt(p)), mean = g.reduce((a, b) => a + b, 0) / g.length;
+  return g.map(v => v / mean);
+})();
+
+/**
  * Angular frequency (radians per step) whose wave on the grid is exactly `lambda` cells long in empty space (the grid's
  * own dispersion included), for `sub` sub-steps per step: 4 sin²(ω / 2sub) sub² = |L(k)|, k = 2π / λ.
  */
