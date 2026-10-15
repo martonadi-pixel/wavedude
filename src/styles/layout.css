@@ -141,3 +141,8 @@ kbd { font: 11px ui-monospace, Menlo, monospace; padding: 1px 5px; border: 1px s
 .shortcuts h3 { margin: 0 0 10px; }
 .shortcuts table { border-collapse: collapse; margin-bottom: 14px; font-size: 13px; }
 .shortcuts td { padding: 4px 12px 4px 0; vertical-align: top; }
+
+/* ------------------------------------------------------------------ Simple mode (for young explorers) */
+.simple-toggle { flex: none; padding: 5px 10px; border-radius: 999px; font-size: 13px; color: var(--muted); background: none; }
+.simple-toggle.on { color: var(--fg); background: var(--accent-soft); border-color: var(--accent); }
+html.simple .adv, html.simple #hud, html.simple .tab[data-tab="settings"] { display: none !important; }

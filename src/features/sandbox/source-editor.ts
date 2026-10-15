@@ -3,7 +3,7 @@
 
 import { type SourceSpec, elementsOf, newMotion } from "../../core/sources";
 import { levelColor } from "../../core/physics";
-import { h, slider, select, check, numberInput, segmented, fold } from "../../components";
+import { h, adv, slider, select, check, numberInput, segmented, fold } from "../../components";
 
 /** The settings under "More options" that differ from a plain source, for the section's summary. */
 function moreSummary(s: SourceSpec): string {
@@ -64,28 +64,28 @@ export function sourceEditor(s: SourceSpec, changed: () => void, existing: boole
     ) : null;
     const parts: (Node | null)[] = [
       existing ? h("label", { class: "field" }, h("span", { class: "lbl" }, h("span", { class: "t" }, "Name")), nameIn) : null,
-      existing ? h("div", { class: "grid2" },
+      existing ? adv(h("div", { class: "grid2" },
         numberInput({ label: "X", value: s.x, onChange: v => { const dx = Math.round(v) - s.x; s.x += dx; s.x2 += dx; c(); } }),
-        numberInput({ label: "Y", value: s.y, onChange: v => { const dy = Math.round(v) - s.y; s.y += dy; s.y2 += dy; c(); } })) : null,
+        numberInput({ label: "Y", value: s.y, onChange: v => { const dy = Math.round(v) - s.y; s.y += dy; s.y2 += dy; c(); } }))) : null,
       existing && s.baked ? h("p", { class: "note" }, `Loaded from a project: ${s.baked.length} fixed element${s.baked.length === 1 ? "" : "s"}. Changing a setting regenerates them.`) : null,
       h("div", { class: "freq" }, swatch, slider({ label: "Frequency", min: 1, max: 255, step: 1, value: s.level,
         help: "The source level 1–255 (the green value). Higher = faster oscillation = shorter waves. The colour shows it: red = low, violet = high.",
         onInput: v => { s.level = v; swatch.style.background = levelColor(v); c(); }, onChange: () => relist() })),
       slider({ label: "Amplitude", min: 0, max: 100, step: 1, value: s.amplitudePct, unit: "%", onInput: v => { s.amplitudePct = v; c(); } }),
-      slider({ label: "Phase", min: -180, max: 180, step: 5, value: s.phaseDeg, unit: "°", help: "Where in its cycle the source starts. Two sources 180° apart push in opposite directions.", onInput: v => { s.phaseDeg = v; c(); } }),
-      segmented({ label: "Mode", options: [["continuous", "Continuous"], ["pulsed", "Pulsed"]], value: s.mode, help: "Continuous: a steady wave. Pulsed: bursts of a few cycles, on and off.",
-        onChange: v => { s.mode = v as SourceSpec["mode"]; c(); draw(); if (existing) relist(); } }),
-      s.kind === "laser" || !existing ? h("div", { class: "pulse" },
+      adv(slider({ label: "Phase", min: -180, max: 180, step: 5, value: s.phaseDeg, unit: "°", help: "Where in its cycle the source starts. Two sources 180° apart push in opposite directions.", onInput: v => { s.phaseDeg = v; c(); } })),
+      adv(segmented({ label: "Mode", options: [["continuous", "Continuous"], ["pulsed", "Pulsed"]], value: s.mode, help: "Continuous: a steady wave. Pulsed: bursts of a few cycles, on and off.",
+        onChange: v => { s.mode = v as SourceSpec["mode"]; c(); draw(); if (existing) relist(); } })),
+      s.kind === "laser" || !existing ? adv(h("div", { class: "pulse" },
         !existing ? h("p", { class: "hint" }, "Laser (⇶ tool):") : null,
         slider({ label: "Beam direction", min: -180, max: 180, step: 1, value: s.angleDeg, unit: "°", help: "0° = to the right, 90° = down. You can also aim while placing a laser by dragging.", onInput: v => { s.angleDeg = v; c(); } }),
-        slider({ label: "Beam width", min: 3, max: 80, step: 1, value: s.beamWidth, unit: " cells", help: "Half-width of the Gaussian beam profile (where the amplitude has fallen to 1/e). A narrow beam spreads out faster (diffraction).", onInput: v => { s.beamWidth = v; c(); } })) : null,
-      s.mode === "pulsed" ? h("div", { class: "pulse" },
+        slider({ label: "Beam width", min: 3, max: 80, step: 1, value: s.beamWidth, unit: " cells", help: "Half-width of the Gaussian beam profile (where the amplitude has fallen to 1/e). A narrow beam spreads out faster (diffraction).", onInput: v => { s.beamWidth = v; c(); } }))) : null,
+      s.mode === "pulsed" ? adv(h("div", { class: "pulse" },
         select({ label: "Pulse shape", options: [["gaussian", "Gaussian"], ["square", "Smoothed square"]], value: s.shape, onChange: v => { s.shape = v as SourceSpec["shape"]; c(); } }),
         slider({ label: "On (cycles)", min: 1, max: 50, step: 1, value: s.onCycles, onInput: v => { s.onCycles = v; c(); } }),
-        slider({ label: "Off (cycles)", min: 1, max: 300, step: 1, value: s.offCycles, onInput: v => { s.offCycles = v; c(); } })) : null,
-      motion,
-      more,
-      existing ? h("p", { class: "muted small cells" }, `${elementsOf({ ...s, enabled: true, hasPosition: true }).length} driven cells`) : null,
+        slider({ label: "Off (cycles)", min: 1, max: 300, step: 1, value: s.offCycles, onInput: v => { s.offCycles = v; c(); } }))) : null,
+      adv(motion),
+      adv(more),
+      existing ? adv(h("p", { class: "muted small cells" }, `${elementsOf({ ...s, enabled: true, hasPosition: true }).length} driven cells`)) : null,
     ];
     box.replaceChildren(...parts.filter((x): x is Node => x !== null));
   };

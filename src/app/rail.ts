@@ -13,6 +13,8 @@ export class Rail {
   private shown = new Map<string, Tool>();
   private flyout: HTMLElement | null = null;
   private allowed: Tool[] = [];
+  /** Tools the rail leaves out for now, whatever the page offers (Simple mode). */
+  limit: (t: Tool) => boolean = () => true;
 
   constructor(private current: () => Tool, private pick: (t: Tool) => void) {
     this.el = h("nav", { id: "rail", class: "rail", "aria-label": "Tools" });
@@ -26,10 +28,10 @@ export class Rail {
     this.render();
   }
 
-  isAllowed(t: Tool): boolean { return this.allowed.includes(t); }
+  isAllowed(t: Tool): boolean { return this.allowed.includes(t) && this.limit(t); }
 
   groups(): { g: ToolGroup; tools: Tool[] }[] {
-    return GROUPS.map(g => ({ g, tools: g.tools.filter(t => this.allowed.includes(t)) })).filter(x => x.tools.length);
+    return GROUPS.map(g => ({ g, tools: g.tools.filter(t => this.isAllowed(t)) })).filter(x => x.tools.length);
   }
 
   render(): void {

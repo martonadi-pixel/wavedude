@@ -19,6 +19,12 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs = 
 }
 
 
+/** Marks an advanced control: hidden in Simple mode. */
+export function adv<T extends Element | null>(e: T): T {
+  e?.classList.add("adv");
+  return e;
+}
+
 let uid = 0;
 /** A unique id for elements (aria links). */
 export const nextId = (p: string) => `${p}-${++uid}`;

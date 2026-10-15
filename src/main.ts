@@ -12,6 +12,7 @@ import { ToolOptions } from "./app/options";
 import { Toolbar, zoomCluster } from "./app/toolbar";
 import { Graphs } from "./app/graphs";
 import { openContextMenu } from "./app/context-menu";
+import { SIMPLE_TOOLS, isSimple, onSimpleChange, simpleToggle } from "./app/simple";
 import { installKeyboard } from "./app/keyboard";
 import { TOOLS } from "./app/tools";
 import { renderExperimentList, openExperiment } from "./features/experiments/guide";
@@ -51,6 +52,14 @@ function start(): void {
     options.render();
   };
   const rail = new Rail(() => sim.view.tool, pick);
+  // Simple mode: the Sandbox offers a few tools (an experiment keeps the tools its steps need)
+  rail.limit = t => !(isSimple() && sim.owner === "sandbox") || SIMPLE_TOOLS.includes(t);
+  onSimpleChange(() => {
+    if (!rail.isAllowed(sim.view.tool)) pick("pan");
+    rail.render();
+    options.render(true);
+  });
+  document.querySelector("header nav")!.after(simpleToggle());
   const hint = h("div", { class: "view-hint", "aria-live": "polite" });
   work.prepend(rail.el);
   stage.prepend(options.el);

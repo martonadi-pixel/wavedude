@@ -5,7 +5,7 @@
 import type { Sim } from "../sim/sim";
 import type { Tool } from "../view/viewport";
 import { isPaintTool } from "../sim/tools";
-import { h, slider, segmented } from "../components";
+import { h, adv, slider, segmented } from "../components";
 import { TOOLS } from "./tools";
 
 export type OptionsRenderer = (tool: Tool) => Node | Node[] | null;
@@ -46,8 +46,8 @@ export class ToolOptions {
         help: "Freehand paints as you drag. Line, Box and Filled make an object you can select, move and delete later (drag from one end or corner to the other; lines snap to straight and 45°).",
         onChange: v => { sim.paintShape = v as typeof sim.paintShape; } }),
       thick,
-      tool === "glass" ? slider({ label: "Refractive index", min: 1.05, max: 2.55, step: 0.05, value: sim.glassIndex, format: v => `n ${v.toFixed(2)}`,
-        help: "How many times slower waves travel in the glass.", onInput: v => { sim.glassIndex = v; } }) : null,
+      tool === "glass" ? adv(slider({ label: "Refractive index", min: 1.05, max: 2.55, step: 0.05, value: sim.glassIndex, format: v => `n ${v.toFixed(2)}`,
+        help: "How many times slower waves travel in the glass.", onInput: v => { sim.glassIndex = v; } })) : null,
     ].filter((x): x is HTMLElement => !!x);
   }
 }

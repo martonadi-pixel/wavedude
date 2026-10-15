@@ -10,8 +10,9 @@ import { Scene } from "../../core/scene";
 import { DEFAULT_BRIGHTNESS_PCT, type Sim } from "../../sim/sim";
 import type { Tool } from "../../view/viewport";
 import { decodeImage, newMeta, newSceneInfo } from "../../project/project";
-import { h, help, slider, select, check, numberInput, fold, refreshSummaries, filterFolds, tabs } from "../../components";
+import { h, adv, help, slider, select, check, numberInput, fold, refreshSummaries, filterFolds, tabs } from "../../components";
 import type { Shell } from "../../app/shell";
+import { isSimple, onSimpleChange } from "../../app/simple";
 import { DEMOS, CIRCUITS } from "./demos";
 import { projectBar, toast } from "./project-bar";
 import { inspector } from "./inspector";
@@ -29,6 +30,9 @@ let start = "lens";
 let background = 1;
 /** What the "find a setting" box holds (kept while the panel is drawn again). */
 let query = "";
+/** The shell the Sandbox was last opened in (for redrawing it when Simple mode is switched). */
+let shown: Shell | null = null;
+onSimpleChange(() => { if (shown && shown.sim.owner === "sandbox" && document.getElementById("panel")?.querySelector(".sandbox-tabs")) render(shown); });
 
 export function openSandbox(shell: Shell): void {
   const { sim } = shell;
@@ -42,6 +46,7 @@ export function openSandbox(shell: Shell): void {
   if (sim.logic) { sim.logic.showBoxes = true; sim.logic.drawLabels(); }
   shell.setHeader(projectBar(sim, () => render(shell)));
   shell.setToolOptions(sandboxToolOptions(sim, () => shell.refreshToolOptions()));
+  shown = shell;
   render(shell);
 }
 
@@ -134,15 +139,15 @@ function render(shell: Shell): void {
     return h("div", {},
       h("label", { class: "field" }, h("span", { class: "lbl" }, h("span", { class: "t" }, "Start from"),
         help("Replaces the scene. The demos are made of objects you can select, move and change; the circuits are ready-made computers of light.")), startSel),
-      CIRCUITS.some(c => c.id === start) ? null : select({ label: "Size (cells)", options: SIZES, value: size,
-        help: "Number of grid cells. Bigger shows finer detail but is slower. “Fit window” uses one cell per screen pixel.", onChange: v => { size = v; loadStart(sim); rerender(); } }),
-      start === "empty" ? slider({ label: "Background refractive index", min: 1, max: 2.55, step: 0.01, value: background, help: "Index of the empty scene (the Windows app allows 1.00–2.55).",
-        onInput: v => { background = v; }, onChange: () => { loadStart(sim); } }) : null,
+      CIRCUITS.some(c => c.id === start) ? null : adv(select({ label: "Size (cells)", options: SIZES, value: size,
+        help: "Number of grid cells. Bigger shows finer detail but is slower. “Fit window” uses one cell per screen pixel.", onChange: v => { size = v; loadStart(sim); rerender(); } })),
+      start === "empty" ? adv(slider({ label: "Background refractive index", min: 1, max: 2.55, step: 0.01, value: background, help: "Index of the empty scene (the Windows app allows 1.00–2.55).",
+        onInput: v => { background = v; }, onChange: () => { loadStart(sim); } })) : null,
       check({ label: "Damping edge", value: sim.scene.edgeOn, help: "An absorbing border so waves leave the picture instead of bouncing back off the edges.",
         onChange: v => { sim.scene.edgeOn = v; sim.scene.applyEdge(); sim.engine.updateMaterial(); } }),
-      slider({ label: "Edge thickness", min: 1, max: 160, step: 1, value: sim.scene.edge, unit: " cells", help: "Thicker absorbs long waves better.",
-        onInput: v => { sim.scene.edge = v; }, onChange: () => { sim.scene.applyEdge(); sim.engine.updateMaterial(); } }),
-      fold({ id: "sbx-image", title: "Scene image", sub: true, open: false, summary: () => imageName || "load your own" },
+      adv(slider({ label: "Edge thickness", min: 1, max: 160, step: 1, value: sim.scene.edge, unit: " cells", help: "Thicker absorbs long waves better.",
+        onInput: v => { sim.scene.edge = v; }, onChange: () => { sim.scene.applyEdge(); sim.engine.updateMaterial(); } })),
+      adv(fold({ id: "sbx-image", title: "Scene image", sub: true, open: false, summary: () => imageName || "load your own" },
         h("label", { class: "field" }, h("span", { class: "lbl" }, h("span", { class: "t" }, "Load a scene image"),
           help("Same format as the Windows app: red = refractive index × 100 (150 = glass n 1.5), green > 0 = a source with that frequency, blue = damping (255 = absorbs fully).")), imgIn),
         sim.sceneInfo.mode === "image" && !sim.sceneInfo.dirty ? h("p", { class: "muted small" }, `Image: ${sim.sceneInfo.imagePath} (${sim.scene.width} × ${sim.scene.height})`) : null,
@@ -157,8 +162,8 @@ function render(shell: Shell): void {
             });
           } }),
         slider({ label: "Image source amplitude", min: 0, max: 5, step: 0.05, value: e.imageSourceAmplitude, help: "Strength of the image's sources (image source scale; 1 = the Python code).",
-          onInput: v => { e.imageSourceAmplitude = v; }, onChange: () => sim.reload() })),
-      h("p", { class: "hint" }, "Build a circuit of your own with the ", h("b", {}, "⚡ Logic"), " tools on the rail: light guides, inputs, detectors and transistors."),
+          onInput: v => { e.imageSourceAmplitude = v; }, onChange: () => sim.reload() }))),
+      adv(h("p", { class: "hint" }, "Build a circuit of your own with the ", h("b", {}, "⚡ Logic"), " tools on the rail: light guides, inputs, detectors and transistors.")),
     );
   };
 
@@ -227,6 +232,9 @@ function render(shell: Shell): void {
     { id: "scene", label: "Scene", render: scene },
     { id: "settings", label: "Settings", render: settings },
   ]);
+  // Simple mode has no Settings tab
+  if (isSimple() && objectsTab.current() === "settings") objectsTab.show("objects");
+  objectsTab.el.classList.add("sandbox-tabs");
   // whenever objects or the selection change: the Objects tab is drawn again (the others only update the count)
   sim.changed = [() => { if (objectsTab.current() === "objects") objectsTab.refresh(); else objectsTab.labels(); }];
   panel.replaceChildren(h("div", { class: "page-head" }, h("h2", {}, "Sandbox"),

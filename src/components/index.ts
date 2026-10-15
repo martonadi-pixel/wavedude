@@ -1,7 +1,7 @@
 // Wave Dude 2D web - the reusable UI pieces, in one import.
 // GPL-3.0-or-later.
 
-export { h, nextId, type Child, type Attrs } from "./h";
+export { h, adv, nextId, type Child, type Attrs } from "./h";
 export { loadPref, savePref } from "./prefs";
 export { help, slider, select, check, numberInput, segmented, textField, xyFields } from "./controls";
 export { fold, setFold, refreshSummaries, filterFolds } from "./fold";

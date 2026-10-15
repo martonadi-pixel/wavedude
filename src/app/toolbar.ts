@@ -3,7 +3,7 @@
 // GPL-3.0-or-later.
 
 import type { Sim } from "../sim/sim";
-import { h } from "../components";
+import { h, adv } from "../components";
 
 /** The speed slider picks from these steps per frame; below 1 is slow motion. */
 const SPEEDS = [0.125, 0.25, 0.5, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64];
@@ -65,9 +65,9 @@ export class Toolbar {
       h("div", { class: "grp" }, this.runBtn,
         h("button", { type: "button", "data-help": "Clear all waves and start again from step 0 (R). The scene stays.", onclick: () => sim.reset() }, "⟲ Reset"), this.stepOut),
       h("div", { class: "grp" }, h("span", { class: "lbl" }, "Speed"), speed, speedOut),
-      h("div", { class: "grp" }, h("div", { class: "segs" }, field, inten), outlines),
-      h("div", { class: "grp" }, h("span", { class: "lbl", "aria-hidden": "true" }, "☀"), bright, brightOut,
-        h("button", { type: "button", "data-help": "Automatic brightness: makes the strongest waves just reach full colour (A).", onclick: () => sim.autoExposure() }, "Auto")),
+      h("div", { class: "grp" }, h("div", { class: "segs" }, field, inten), adv(outlines)),
+      adv(h("div", { class: "grp" }, h("span", { class: "lbl", "aria-hidden": "true" }, "☀"), bright, brightOut,
+        h("button", { type: "button", "data-help": "Automatic brightness: makes the strongest waves just reach full colour (A).", onclick: () => sim.autoExposure() }, "Auto"))),
       h("div", { class: "grp" }, h("div", { class: "segs" }, dim2, dim3), heightGrp),
       h("div", { class: "grp" }, this.undoBtn, this.redoBtn),
     );
@@ -113,5 +113,5 @@ export function zoomCluster(sim: Sim): HTMLElement {
     h("button", { type: "button", "aria-label": "Zoom out", "data-help": "Zoom out (−)", onclick: () => sim.view.zoomBy(1 / 1.4) }, "−"),
     h("button", { type: "button", "aria-label": "Fit", "data-help": "Show the whole scene (F)", onclick: () => sim.view.fit() }, "⤢"),
     h("button", { type: "button", "aria-label": "Save the picture", "data-help": "Save the picture as PNG", onclick: () => sim.screenshot() }, "📷"),
-    h("button", { type: "button", "aria-label": "Clear measurements", "data-help": "Remove the ruler and protractor", onclick: () => { sim.view.measure = { ruler: null, protractor: null }; sim.view.onMeasure(); } }, "🧹"));
+    adv(h("button", { type: "button", "aria-label": "Clear measurements", "data-help": "Remove the ruler and protractor", onclick: () => { sim.view.measure = { ruler: null, protractor: null }; sim.view.onMeasure(); } }, "🧹")));
 }

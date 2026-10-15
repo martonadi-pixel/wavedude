@@ -3,11 +3,11 @@
 
 import type { Sim } from "../../sim/sim";
 import { type ShapeSpec, type ShapeMaterial, shapeBounds, shapeInfo } from "../../core/shapes";
-import { h, slider, check, numberInput, segmented, textField, xyFields } from "../../components";
+import { h, adv, slider, check, numberInput, segmented, textField, xyFields } from "../../components";
 
 export function shapeEditor(sim: Sim, s: ShapeSpec, relist: () => void): HTMLElement {
   const box = h("div", { class: "editor" });
-  const info = h("p", { class: "muted small cells" }, shapeInfo(s));
+  const info = adv(h("p", { class: "muted small cells" }, shapeInfo(s)));
   // every change redraws the shape where it was and where it is now (one undo step per pause)
   const ch = (f: () => void) => { sim.undo.touch("Change shape"); const before = shapeBounds(s); f(); sim.updateShape(s, before); info.textContent = shapeInfo(s); };
   const draw = () => {
@@ -17,8 +17,8 @@ export function shapeEditor(sim: Sim, s: ShapeSpec, relist: () => void): HTMLEle
       segmented({ label: "Made of", options: [["wall", "▮ Wall"], ["glass", "⬭ Glass"], ["absorber", "░ Absorber"]], value: s.material,
         help: "Wall: waves bounce off completely. Glass: waves go slower and bend. Absorber: soaks waves up gradually from its edge inwards.",
         onChange: v => { ch(() => { s.material = v as ShapeMaterial; }); draw(); relist(); } }),
-      s.material === "glass" ? slider({ label: "Refractive index", min: 1.05, max: 2.55, step: 0.01, value: s.n, format: v => `n ${v.toFixed(2)}`, onInput: v => ch(() => { s.n = v; }) }) : null,
-      xyFields({ labels: ["Centre X", "Centre Y"], x: s.x, y: s.y, onChange: (x, y) => ch(() => { s.x = x; s.y = y; }) }),
+      s.material === "glass" ? adv(slider({ label: "Refractive index", min: 1.05, max: 2.55, step: 0.01, value: s.n, format: v => `n ${v.toFixed(2)}`, onInput: v => ch(() => { s.n = v; }) })) : null,
+      adv(xyFields({ labels: ["Centre X", "Centre Y"], x: s.x, y: s.y, onChange: (x, y) => ch(() => { s.x = x; s.y = y; }) })),
       slider({ label: "Angle", min: -180, max: 180, step: 1, value: Math.round(s.angleDeg), unit: "°", help: "0° = its length runs to the right; 90° = down.", onInput: v => ch(() => { s.angleDeg = v; }) }),
       slider({ label: "Length", min: 2, max: 2000, step: 1, value: Math.round(s.length), unit: " cells", onInput: v => ch(() => { s.length = v; }) }),
       isLine ? null : slider({ label: "Width", min: 2, max: 2000, step: 1, value: Math.round(s.width), unit: " cells", onInput: v => ch(() => { s.width = v; }) }),

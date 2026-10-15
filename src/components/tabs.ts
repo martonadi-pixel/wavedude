@@ -15,7 +15,7 @@ export function tabs(key: string, list: TabSpec[], first?: string): { el: HTMLEl
   if (!list.some(t => t.id === open)) open = list[0].id;
   const bar = h("div", { class: "tabs", role: "tablist" });
   const body = h("div", { class: "tab-body", role: "tabpanel" });
-  const buttons = list.map(t => h("button", { type: "button", role: "tab", class: "tab", onclick: () => show(t.id) }));
+  const buttons = list.map(t => h("button", { type: "button", role: "tab", class: "tab", "data-tab": t.id, onclick: () => show(t.id) }));
   bar.append(...buttons);
   bar.addEventListener("keydown", e => {
     const i = list.findIndex(t => t.id === open);

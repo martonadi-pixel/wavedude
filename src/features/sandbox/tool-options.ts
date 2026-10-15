@@ -7,7 +7,7 @@ import type { Tool } from "../../view/viewport";
 import { OPTIC_KINDS, newOptic } from "../../core/optics";
 import { levelColor } from "../../core/physics";
 import { logicTemplate } from "../../circuits/editor";
-import { h, slider, check, segmented, showPopover } from "../../components";
+import { h, adv, slider, check, segmented, showPopover } from "../../components";
 import { sourceEditor } from "./source-editor";
 import { opticEditor } from "./optic-editor";
 
@@ -21,12 +21,12 @@ export function sandboxToolOptions(sim: Sim, refresh: () => void): (tool: Tool) 
       return [
         h("span", { class: "opt-group" }, sw, slider({ label: "Frequency", min: 1, max: 255, step: 1, value: t.level, help: "Higher = faster oscillation = shorter waves. The colour shows it: red = low, violet = high.",
           onInput: v => { t.level = v; sw.style.setProperty("--c", levelColor(v)); } })),
-        slider({ label: "Amplitude", min: 0, max: 100, step: 1, value: t.amplitudePct, unit: "%", onInput: v => { t.amplitudePct = v; } }),
-        segmented({ options: [["continuous", "Continuous"], ["pulsed", "Pulsed"]], value: t.mode, small: true, onChange: v => { t.mode = v as typeof t.mode; } }),
+        adv(slider({ label: "Amplitude", min: 0, max: 100, step: 1, value: t.amplitudePct, unit: "%", onInput: v => { t.amplitudePct = v; } })),
+        adv(segmented({ options: [["continuous", "Continuous"], ["pulsed", "Pulsed"]], value: t.mode, small: true, onChange: v => { t.mode = v as typeof t.mode; } })),
         ...(tool === "laser" ? [
           slider({ label: "Width", min: 3, max: 80, step: 1, value: t.beamWidth, unit: " cells", help: "Half-width of the beam. A narrow beam spreads out faster (diffraction).", onInput: v => { t.beamWidth = v; } }),
         ] : []),
-        more,
+        adv(more),
       ];
     }
     if (tool === "optic") {
