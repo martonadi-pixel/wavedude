@@ -4,6 +4,7 @@
 // All arrays are row by row from the top (index = y * width + x), like the scene image.
 
 import { c2OfIndex } from "./physics";
+import type { ShapeSpec } from "./shapes";
 
 export interface Material {
   /** Refractive index (0.9..10). Omitted: leave the index as it is. */
@@ -39,6 +40,14 @@ export class Scene {
   readonly imageLevel: Uint8Array;
   edge = 64;
   edgeOn = true;
+  /**
+   * Walls, glass and absorbers as objects (see shapes.ts): not painted into the cells here, the simulation draws them
+   * on top and takes them over when the scene is loaded, so they can be moved and deleted.
+   */
+  shapes: ShapeSpec[] = [];
+
+  /** Adds a shape object (an experiment's wall, slit or glass block that the reader may move). */
+  add(...s: ShapeSpec[]): this { this.shapes.push(...s); return this; }
 
   constructor(readonly width: number, readonly height: number, background = 1) {
     const size = width * height;

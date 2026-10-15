@@ -1,17 +1,25 @@
-// Wave Dude 2D web - one running simulation: the engine, its view, the scene, the sources, the probes and the
-// frame loop. The experiments and the sandbox both drive this.
+// Wave Dude 2D web - one running simulation: the engine, its view, the scene and the objects in it (sources, probes,
+// shapes, optical elements, a wave circuit), the selection, undo, and the frame loop. The experiments and the sandbox
+// both drive this. Tools, selection, the overlay and undo live in the files next to this one.
 // GPL-3.0-or-later.
 
 import { WaveEngine, type Quantity, type DisplayOptions } from "../engine/engine";
-import { Scene, type Material, BARRIER, VACUUM } from "../core/scene";
+import { Scene } from "../core/scene";
 import { type SourceSpec, elementsOf, newSource, movingElements, motionPosition } from "../core/sources";
 import { type OpticSpec, newOptic, drawOptic, opticBounds, opticHit, type Housing, drawHousing, housingBounds } from "../core/optics";
-import { Viewport, type Tool, type Pt, emptyOverlay, type Overlay } from "../view/viewport";
+import { type ShapeSpec, drawShape, shapeBounds } from "../core/shapes";
+import { Viewport, type Pt, emptyOverlay, type Overlay } from "../view/viewport";
 import { type Stencil, continuumWavelength, continuumSpeed, omegaOfLevel } from "../core/physics";
-import { type Stamp, type PaintShape, paintStamp, stampBounds, stampDepth, snapAngle } from "../core/paint";
+import type { PaintShape } from "../core/paint";
 import { type SceneInfo, type ProjectMeta, newSceneInfo, newMeta } from "../project/project";
-import type { Circuit, Detector } from "../circuits/circuit";
-import { isLogicTool, logicTool, logicOverlay } from "../circuits/editor";
+import { Circuit, type LogicJSON } from "../circuits/circuit";
+import { Selector, type Selection } from "./selection";
+import { ToolActions, type PaintTool } from "./tools";
+import { History } from "./history";
+import { buildOverlay } from "./overlay";
+
+export type { PaintTool } from "./tools";
+export type { Selection, SelKind } from "./selection";
 
 /** What a probe measures (ProbeMeasurement): the field u, the averaged intensity, or the intensity added up over the steps. */
 export type Measurement = "amplitude" | "intensity" | "integrated";
@@ -33,10 +41,8 @@ export interface ProbeSpec {
   label: string;
 }
 
-export type NewProbe = Omit<ProbeSpec, "id" | "color" | "label">;
-
-/** The tools that paint material. */
-export type PaintTool = "glass" | "barrier" | "absorber" | "erase";
+/** A probe to set: without an id it is a new one; with the id of a probe already there it keeps its colour, label and record. */
+export type NewProbe = Omit<ProbeSpec, "id" | "color" | "label"> & Partial<Pick<ProbeSpec, "id" | "color" | "label">>;
 
 export interface ColorSchemeInfo { file: string; name: string; type: "field" | "intensity"; colors?: number[][] }
 
@@ -119,7 +125,24 @@ export class Sim {
   owner: "experiment" | "sandbox" | "colors" | "" = "";
   /** Extra things an experiment draws (labels, arrows). */
   annotations: Overlay = emptyOverlay();
-  selectedSource: number | null = null;
+
+  /** The selected object (one at a time): what the inspector shows, Delete removes and the arrow keys move. */
+  selection: Selection | null = null;
+  select(sel: Selection | null): void {
+    if (sel === this.selection || (sel && this.selection && sel.kind === this.selection.kind && sel.id === this.selection.id)) return;
+    this.selection = sel;
+    this.notify();
+  }
+  /** The selected source's id (null when the selection is something else). */
+  get selectedSource(): number | null { return this.selection?.kind === "source" ? Number(this.selection.id) : null; }
+  set selectedSource(id: number | null) { if (id !== null) this.selection = { kind: "source", id }; else if (this.selection?.kind === "source") this.selection = null; }
+  get selectedOptic(): number | null { return this.selection?.kind === "optic" ? Number(this.selection.id) : null; }
+  set selectedOptic(id: number | null) { if (id !== null) this.selection = { kind: "optic", id }; else if (this.selection?.kind === "optic") this.selection = null; }
+  /** In an experiment: the reader moved or deleted something of the experiment's own (its measurements assume the original layout). */
+  layoutChanged = false;
+  readonly selector: Selector = new Selector(this);
+  readonly tools: ToolActions = new ToolActions(this);
+  readonly undo: History = new History(this);
 
   // sandbox painting
   /** Brush radius (half the stroke thickness) per paint tool; absorbers need to be thick to absorb without echo. */
@@ -136,8 +159,6 @@ export class Sim {
   private frameListeners: (() => void)[] = [];
   private stepTarget: { step: number; done: () => void } | null = null;
   private lutCache = new Map<string, number[][]>();
-  private lineDraft: SourceSpec | null = null;
-  private probeDraft: ProbeSpec | null = null;
   private lastStats = { t: performance.now(), steps: 0, frames: 0 };
   stats = { fps: 0, stepsPerSec: 0 };
 
@@ -149,12 +170,11 @@ export class Sim {
     this.view = new Viewport(host, this.engine);
     this.scene = new Scene(400, 300);
     this.engine.setScene(this.scene);
-    this.view.onTool = (tool, phase, cell, start) => this.toolAction(tool, phase, cell, start);
-    // the reader's own probes can always be moved, even where the experiment's things stay put
-    // and the input switches of a wave circuit can always be flipped with a click
-    this.view.canGrab = cell => this.grabbable ? !!this.sourceNear(cell) || this.probeNear(cell) >= 0 || !!this.detectorNear(cell) || !!this.opticNear(cell)
-      : !!this.probes[this.probeNear(cell)]?.mine || !!this.logic?.switchAt(cell, this.grabRadius());
-    this.view.onGrab = (phase, cell, start) => this.grab(phase, cell, start);
+    this.view.onTool = (tool, phase, cell, start) => this.tools.act(tool, phase, cell, start);
+    // the hand tool picks up anything; a placing tool the objects of its own kind (see Selector.hit)
+    this.view.canGrab = cell => !!this.selector.hit(cell);
+    this.view.onGrab = (phase, cell, start) => this.selector.grab(phase, cell, start);
+    this.view.onTap = () => this.select(null);
     // the GPU can drop the context (driver reset, a crashed video decoder...): ask for it back and rebuild
     canvas.addEventListener("webglcontextlost", e => {
       e.preventDefault();
@@ -164,7 +184,7 @@ export class Sim {
     canvas.addEventListener("webglcontextrestored", () => {
       this.engine.restore();
       this.contextLost = false;
-      this.history = this.history.map(() => []);
+      for (const h of this.history) h.length = 0;
       this.historyStart = 0;
       for (const f of this.restoredListeners) f();
     });
@@ -178,19 +198,24 @@ export class Sim {
    * stays (the same sources on a new or reloaded scene); otherwise it goes.
    */
   load(scene: Scene, sources: SourceSpec[] = [], probes: NewProbe[] = [], optics: OpticSpec[] = [], keepLogic = false): void {
-    // the scene as loaded or painted is the base layer; optical elements are drawn on top of a copy of it
+    // the scene as loaded or painted is the base layer; shapes and optical elements are drawn on top of a copy of it
+    this.shapes = scene.shapes;
+    scene.shapes = [];
     this.baseScene = scene.clone();
     this.stepHook = null;
     if (!keepLogic) this.logic = null;
     this.optics = optics;
-    this.selectedOptic = null;
+    this.selection = null;
+    this.layoutChanged = false;
+    this.tools.cancel();
+    this.undo.clear();
     const all = { x0: 0, y0: 0, x1: scene.width - 1, y1: scene.height - 1 };
+    for (const s of this.shapes) drawShape(scene, s, all);
     for (const o of optics) drawOptic(scene, o, all);
     this.housingsDrawn = this.housings(sources);
     for (const hs of this.housingsDrawn) drawHousing(scene, hs, all);
     this.scene = scene;
     this.sources = sources;
-    this.selectedSource = null;
     // drawing changes dBase only; the damping the simulation uses (d) is dBase plus the edge
     scene.applyEdge();
     this.engine.setScene(scene);
@@ -207,6 +232,7 @@ export class Sim {
     const base = this.baseScene.clone();
     base.edge = this.scene.edge;
     base.edgeOn = this.scene.edgeOn;
+    base.shapes = this.shapes;
     this.load(base, this.sources, this.probeList(), this.optics, true);
   }
 
@@ -214,10 +240,11 @@ export class Sim {
 
   /** Lenses, mirrors, prisms... drawn on top of the base layer (see optics.ts). */
   optics: OpticSpec[] = [];
-  selectedOptic: number | null = null;
+  /** Walls, glass and absorbers as objects (see shapes.ts), drawn on top of the base layer, under the optics. */
+  shapes: ShapeSpec[] = [];
   /** The element the Optics tool places next. */
   opticTemplate: OpticSpec = newOptic("convex");
-  /** The scene without the optical elements: what painting changes. */
+  /** The scene without the shapes and optical elements: what painting changes. */
   baseScene: Scene = new Scene(1, 1);
 
   /** Redraws one rectangle: the base layer, then every element that reaches into it; then sends it to the GPU. */
@@ -232,6 +259,10 @@ export class Sim {
         s.n[i] = b.n[i]; s.c2[i] = b.c2[i]; s.dBase[i] = b.dBase[i];
       }
     const clip = { x0, y0, x1, y1 };
+    for (const sh of this.shapes) {
+      const sb = shapeBounds(sh);
+      if (sb.x1 >= x0 && sb.x0 <= x1 && sb.y1 >= y0 && sb.y0 <= y1) drawShape(s, sh, clip);
+    }
     for (const o of this.optics) {
       const ob = opticBounds(o);
       if (ob.x1 >= x0 && ob.x0 <= x1 && ob.y1 >= y0 && ob.y0 <= y1) drawOptic(s, o, clip);
@@ -252,8 +283,32 @@ export class Sim {
 
   addOptic(o: OpticSpec): void {
     this.optics.push(o);
-    this.selectedOptic = o.id;
+    this.selection = { kind: "optic", id: o.id };
     this.redrawOptic(o);
+    this.notify();
+  }
+
+  // ------------------------------------------------------------------------------------------ shapes
+
+  addShape(s: ShapeSpec): void {
+    this.shapes.push(s);
+    this.selection = { kind: "shape", id: s.id };
+    this.updateShape(s);
+    this.notify();
+  }
+
+  /** Call after changing a shape; `before` = its bounds before the change. */
+  updateShape(s: ShapeSpec, before?: { x0: number; y0: number; x1: number; y1: number }): void {
+    const a = shapeBounds(s), b = before ?? a;
+    this.rasterize(Math.min(a.x0, b.x0), Math.min(a.y0, b.y0), Math.max(a.x1, b.x1), Math.max(a.y1, b.y1));
+  }
+
+  removeShape(id: number): void {
+    const s = this.shapes.find(e => e.id === id);
+    if (!s) return;
+    this.shapes = this.shapes.filter(e => e !== s);
+    if (this.selection?.kind === "shape" && this.selection.id === id) this.selection = null;
+    this.updateShape(s);
     this.notify();
   }
 
@@ -266,15 +321,9 @@ export class Sim {
     const o = this.optics.find(e => e.id === id);
     if (!o) return;
     this.optics = this.optics.filter(e => e !== o);
-    if (this.selectedOptic === id) this.selectedOptic = null;
+    if (this.selectedOptic === id) this.selection = null;
     this.redrawOptic(o);
     this.notify();
-  }
-
-  opticNear(cell: Pt): OpticSpec | undefined {
-    const slack = Math.max(3, 6 * this.view.scale);
-    for (let i = this.optics.length - 1; i >= 0; i--) if (opticHit(this.optics[i], cell.x, cell.y, slack)) return this.optics[i];
-    return undefined;
   }
 
   /** The housings of the lasers among these sources. */
@@ -332,31 +381,53 @@ export class Sim {
     }
   }
 
+  /**
+   * Sets the probes. A probe given with the id of one already there keeps its colour, its label and (if it measures
+   * the same thing at the same place) its record; new ones get the first free colour and number.
+   */
   setProbes(probes: NewProbe[]): void {
     // during an experiment the reader's own probes stay when the experiment sets its probes again
     if (this.keepMine && !probes.some(p => p.mine)) probes = [...probes, ...this.probeList().filter(p => p.mine)];
-    let points = 0, lines = 0;
-    this.probes = probes.map((p, i) => ({
-      ...p, id: i + 1, color: PROBE_COLORS[i % PROBE_COLORS.length],
-      label: p.kind === "point" ? `P${++points}` : `L${++lines}`,
-    }));
-    this.applyProbes();
+    const old = new Map(this.probes.map(p => [p.id, p]));
+    const kept = probes.map(p => (p.id !== undefined ? old.get(p.id) : undefined));
+    const colors = new Set(kept.filter(Boolean).map(p => p!.color));
+    const labels = new Set(kept.filter(Boolean).map(p => p!.label));
+    const free = (prefix: string) => { for (let n = 1; ; n++) if (!labels.has(`${prefix}${n}`)) { labels.add(`${prefix}${n}`); return `${prefix}${n}`; } };
+    const freeColor = () => { const c = PROBE_COLORS.find(x => !colors.has(x)) ?? PROBE_COLORS[colors.size % PROBE_COLORS.length]; colors.add(c); return c; };
+    const before = new Map(this.probes.map(p => [p.id, p]));
+    this.probes = probes.map((p, i) => {
+      const k = kept[i];
+      return { ...p, id: k ? k.id : this.nextProbeId++, color: k ? k.color : freeColor(), label: k ? k.label : free(p.kind === "point" ? "P" : "L") };
+    });
+    this.applyProbes(before);
   }
+  private nextProbeId = 1;
 
   /** The probes that are measured, in engine order: the active point probes, then the active line probes. */
   get pointProbes(): ProbeSpec[] { return this.probes.filter(p => p.kind === "point" && p.active !== false); }
   get lineProbes(): ProbeSpec[] { return this.probes.filter(p => p.kind === "line" && p.active !== false); }
 
-  private applyProbes(): void {
+  private records = new Map<number, { h: number[]; total: number }>();
+
+  /** Sends the probes to the engine. Records of point probes that still measure the same thing at the same place stay. */
+  private applyProbes(before = new Map<number, ProbeSpec>()): void {
     const pts = this.pointProbes, lns = this.lineProbes;
     this.engine.setProbes(
       pts.map(p => ({ x: p.x, y: p.y, quantity: p.measurement === "amplitude" ? "field" : "intensity" })),
       lns.map(p => ({ x0: p.x, y0: p.y, x1: p.x2, y1: p.y2, quantity: p.measurement === "amplitude" ? "field" : "intensity",
         integrate: p.measurement === "integrated", startAfter: p.startAfter ?? -1 })),
     );
-    this.runningTotals = pts.map(() => 0);
-    this.history = pts.map(() => []);
-    this.historyStart = this.engine.time;
+    const same = (p: ProbeSpec) => { const b = before.get(p.id); return !!b && b.x === p.x && b.y === p.y && b.measurement === p.measurement && b.active !== false && b.startAfter === p.startAfter; };
+    const keep = pts.filter(same);
+    if (!keep.length) {
+      this.historyStart = this.engine.time;
+      this.records = new Map(pts.map(p => [p.id, { h: [], total: 0 }]));
+    } else {
+      // a new probe's record starts with gaps, so every record lines up with historyStart
+      const len = this.records.get(keep[0].id)?.h.length ?? 0;
+      this.records = new Map(pts.map(p => [p.id, same(p) && this.records.has(p.id) ? this.records.get(p.id)! : { h: new Array<number>(len).fill(NaN), total: 0 }]));
+    }
+    this.history = pts.map(p => this.records.get(p.id)!.h);
     this.profiles = [];
   }
 
@@ -373,17 +444,22 @@ export class Sim {
     this.notify();
   }
 
-  addProbe(p: NewProbe): void {
+  /** Adds a probe; returns its id. */
+  addProbe(p: NewProbe): number {
     this.setProbes([...this.probeList(), p]);
+    this.notify();
+    return this.probes[this.probes.length - 1].id;
   }
 
-  /** The probes without their display fields, for setProbes. */
+  /** The probes as they are (with their ids), for setProbes. */
   probeList(): NewProbe[] {
-    return this.probes.map(({ id: _i, color: _c, label: _l, ...rest }) => rest);
+    return this.probes.map(p => ({ ...p }));
   }
 
   removeProbe(id: number): void {
-    this.setProbes(this.probes.filter(p => p.id !== id).map(({ id: _i, color: _c, label: _l, ...rest }) => rest));
+    this.setProbes(this.probeList().filter(p => p.id !== id));
+    if (this.selection?.kind === "probe" && this.selection.id === id) this.selection = null;
+    this.notify();
   }
 
   /**
@@ -393,7 +469,7 @@ export class Sim {
   removeSources(gone: SourceSpec[]): void {
     if (!gone.length) return;
     this.sources = this.sources.filter(s => !gone.includes(s));
-    if (this.selectedSource !== null && gone.some(s => s.id === this.selectedSource)) this.selectedSource = null;
+    if (this.selectedSource !== null && gone.some(s => s.id === this.selectedSource)) this.selection = null;
     this.logic?.prune(this.sources);
     this.refreshSources();
     this.engine.clearField();
@@ -403,13 +479,10 @@ export class Sim {
   reset(): void {
     this.engine.reset();
     this.moveSources(0);
-    this.history = this.history.map(() => []);
-    this.runningTotals = this.runningTotals.map(() => 0);
+    for (const r of this.records.values()) { r.h.length = 0; r.total = 0; }
     this.historyStart = 0;
     this.profiles = [];
   }
-
-  private runningTotals: number[] = [];
 
   set stencil(s: Stencil) { this.engine.settings.stencil = s; }
   get stencil(): Stencil { return this.engine.settings.stencil; }
@@ -555,14 +628,13 @@ export class Sim {
     const samples = this.engine.takeSamples();
     const pts = this.pointProbes;
     samples.forEach((s, i) => {
-      const h = this.history[i];
-      if (!h) return;
-      const p = pts[i];
-      if (p?.measurement === "integrated") {
+      const p = pts[i], r = p && this.records.get(p.id);
+      if (!r) return;
+      if (p.measurement === "integrated") {
         // a running total of the intensity (ProbeCollector), from "start after step" on
         const first = this.engine.time - s.length + 1, start = p.startAfter ?? -1;
-        s.forEach((v, k) => { if (first + k > start) this.runningTotals[i] += v; h.push(this.runningTotals[i]); });
-      } else for (const v of s) h.push(v);
+        s.forEach((v, k) => { if (first + k > start) r.total += v; r.h.push(r.total); });
+      } else for (const v of s) r.h.push(v);
     });
     const over = (this.history[0]?.length ?? 0) - HISTORY_KEEP;
     if (over > 0) {
@@ -572,277 +644,76 @@ export class Sim {
     if (this.lineProbes.length) this.profiles = this.engine.readProfiles();
   }
 
-  private sourceColors = new WeakMap<SourceSpec, string>();
+  private sourceColors = new Map<number, string>();
 
   /** A source's own colour: the first one of the palette no other current source has, kept for as long as it lives. */
   sourceColor(s: SourceSpec): string {
-    let c = this.sourceColors.get(s);
+    let c = this.sourceColors.get(s.id);
     if (!c) {
-      const used = new Set(this.sources.filter(o => o !== s).map(o => this.sourceColors.get(o)));
+      const used = new Set(this.sources.filter(o => o !== s).map(o => this.sourceColors.get(o.id)));
       c = SOURCE_COLORS.find(x => !used.has(x)) ?? SOURCE_COLORS[(s.id - 1) % SOURCE_COLORS.length];
-      this.sourceColors.set(s, c);
+      this.sourceColors.set(s.id, c);
     }
     return c;
   }
 
-  private buildOverlay(): Overlay {
-    const o = emptyOverlay();
-    if (this.showSources) {
-      // in the sandbox each source carries its name on the canvas; experiments label their own scenes
-      const named = this.owner === "sandbox";
-      for (const s of this.sources) {
-        if (!s.enabled) continue;
-        const color = this.sourceColor(s), selected = s.id === this.selectedSource;
-        const label = [named ? s.name : "", s.kind === "array" ? `${s.countX}×${s.countY}` : ""].filter(Boolean).join(" · ") || undefined;
-        if (s.motion && s.kind === "point") { this.motionOverlay(o, s, color, selected, label); continue; }
-        if (s.kind === "line") o.sources.push({ x: s.x, y: s.y, x2: s.x2, y2: s.y2, level: s.level, selected, color, label });
-        else if (s.kind === "laser") this.laserOverlay(o, s, selected);
-        else o.sources.push({ x: s.x, y: s.y, level: s.level, selected, color, label });
-      }
-      if (!this.useObjectSources) o.sources.length = 0;
-      if (this.lineDraft) o.sources.push({ x: this.lineDraft.x, y: this.lineDraft.y, x2: this.lineDraft.x2, y2: this.lineDraft.y2, level: this.lineDraft.level });
-      if (this.laserDraft) this.laserOverlay(o, this.laserDraft, true);
-    }
-    for (const p of [...this.probes.filter(q => q.active !== false), ...(this.probeDraft ? [this.probeDraft] : [])]) {
-      if (p.kind === "point") o.pointProbes.push({ x: p.x, y: p.y, color: p.color, label: p.label });
-      else o.lineProbes.push({ x0: p.x, y0: p.y, x1: p.x2, y1: p.y2, color: p.color, label: p.label });
-    }
-    if (this.showOutlines)
-      for (const e of this.optics) {
-        if (e.id === this.selectedOptic) continue;
-        const b = opticBounds(e);
-        o.labels.push({ x: e.x - 30, y: b.y0 - 6, text: e.name, color: "#9fe3ffcc" });
-      }
-    const so = this.optics.find(e => e.id === this.selectedOptic);
-    if (so) {
-      const b = opticBounds(so);
-      o.labels.push({ x: so.x - 30, y: b.y0 - 6, text: `◆ ${so.name}`, color: "#7df9ff" });
-    }
-    o.labels.push(...this.annotations.labels);
-    o.arrows.push(...this.annotations.arrows);
-    o.boxes.push(...this.annotations.boxes);
-    this.shapeOverlay(o);
-    logicOverlay(this, o);
-    return o;
+  // ------------------------------------------------------------------------------------------ objects as a whole
+
+  /** Every object (sources, probes, shapes, optical elements, the wave circuit) as JSON: an undo step. */
+  objectsJSON(): string {
+    return JSON.stringify({ sources: this.sources, probes: this.probeList(), shapes: this.shapes, optics: this.optics, logic: this.logic && !this.logic.empty ? this.logic.toJSON(this.sources) : null });
   }
 
-  /** The straight line or box being dragged out with a paint tool, as it will be painted. */
-  private shapeOverlay(o: Overlay): void {
-    const d = this.shapeDraft, st = this.draftStamp();
-    if (!d || !st) return;
-    const color = d.erase ? "#f87171" : this.view.tool === "glass" ? "#7dd3fc" : this.view.tool === "absorber" ? "#c4b5fd" : "#e2e8f0";
-    if (st.kind === "disc") return;
-    if (st.kind === "segment") o.paths.push({ pts: [{ x: st.x0, y: st.y0 }, { x: st.x1, y: st.y1 }], width: 2 * st.r, color });
-    else {
-      const pts = [{ x: st.x0, y: st.y0 }, { x: st.x1, y: st.y0 }, { x: st.x1, y: st.y1 }, { x: st.x0, y: st.y1 }];
-      o.paths.push(st.kind === "box" ? { pts, closed: true, width: 2 * st.r, color } : { pts, closed: true, fill: true, color });
-    }
-    const len = st.kind === "segment" ? `${Math.round(Math.hypot(st.x1 - st.x0, st.y1 - st.y0))} cells` : `${Math.round(Math.abs(st.x1 - st.x0))} × ${Math.round(Math.abs(st.y1 - st.y0))}`;
-    o.labels.push({ x: d.b.x + 10, y: d.b.y - 10, text: len, color });
+  /** Puts the objects back as objectsJSON recorded them (undo, redo). The waves are kept. */
+  applyObjects(json: string): void {
+    const d = JSON.parse(json) as { sources: SourceSpec[]; probes: NewProbe[]; shapes: ShapeSpec[]; optics: OpticSpec[]; logic: LogicJSON | null };
+    const gone = [...this.shapes.map(shapeBounds), ...this.optics.map(opticBounds)];
+    this.sources = d.sources;
+    this.shapes = d.shapes;
+    this.optics = d.optics;
+    const boxes = boxes4(this);
+    for (const b of [...gone, ...boxes]) this.rasterize(b.x0, b.y0, b.x1, b.y1);
+    this.setProbes(d.probes);
+    const showBoxes = this.logic?.showBoxes ?? false;
+    if (d.logic) {
+      const c = Circuit.fromJSON(this, d.logic, this.sources);
+      c.showBoxes = showBoxes;
+      c.attach();
+    } else if (this.logic) { this.logic = null; this.stepHook = null; }
+    this.refreshSources();
+    const sel = this.selection;
+    if (sel && !this.exists(sel)) this.selection = null;
+    this.notify();
   }
 
-  /** A moving source: where it is now, and the path it follows (faint, dashed). */
-  private motionOverlay(o: Overlay, s: SourceSpec, color: string, selected: boolean, label?: string): void {
-    const m = s.motion!, p = this.sourcePos(s);
-    if (m.kind === "circle") {
-      const r = Math.max(1, m.radius), n = Math.max(24, Math.min(120, Math.round(r)));
-      o.paths.push({ pts: Array.from({ length: n }, (_, k) => ({ x: s.x + 0.5 + r * Math.cos((2 * Math.PI * k) / n), y: s.y + 0.5 + r * Math.sin((2 * Math.PI * k) / n) })), closed: true, color: `${color}88` });
-    } else {
-      const end = motionPosition(s, 1e9, this.waveSpeed, this.scene.width, this.scene.height);
-      o.paths.push({ pts: [{ x: s.x + 0.5, y: s.y + 0.5 }, { x: end.x + 0.5, y: end.y + 0.5 }], color: `${color}88` });
-    }
-    o.sources.push({ x: Math.round(p.x), y: Math.round(p.y), level: s.level, selected, color, label: label ? `${label} → ${m.mach.toFixed(2)}× wave speed` : undefined });
-  }
-
-  /** A laser: its emitting aperture as a line, and an arrow along the beam. */
-  private laserOverlay(o: Overlay, s: SourceSpec, selected: boolean): void {
-    const a = (s.angleDeg * Math.PI) / 180, dx = Math.cos(a), dy = Math.sin(a), half = 1.8 * s.beamWidth;
-    o.sources.push({ x: Math.round(s.x + dy * half), y: Math.round(s.y - dx * half), x2: Math.round(s.x - dy * half), y2: Math.round(s.y + dx * half), level: s.level, selected,
-      color: this.sourceColor(s), label: this.owner === "sandbox" ? s.name : undefined });
-    o.arrows.push({ x0: s.x, y0: s.y, x1: s.x + dx * 50, y1: s.y + dy * 50, color: selected ? "#ffffff" : "#ffffffaa" });
-  }
-
-  private laserDraft: SourceSpec | null = null;
-
-  // ------------------------------------------------------------------------------------------ tools
-
-  private toolAction(tool: Tool, phase: "down" | "move" | "up", cell: Pt, start: Pt): void {
-    const x = Math.floor(cell.x), y = Math.floor(cell.y);
-    const inside = x >= 0 && y >= 0 && x < this.scene.width && y < this.scene.height;
-    if (isLogicTool(tool)) return logicTool(this, tool, phase, cell, start);
-    switch (tool) {
-      case "glass": return this.stroke(phase, cell, { n: this.glassIndex });
-      case "barrier": return this.stroke(phase, cell, BARRIER);
-      case "absorber": return this.stroke(phase, cell, "absorber");
-      case "erase": return this.stroke(phase, cell, VACUUM, true);
-      case "source":
-        if (phase === "down" && inside) {
-          const near = this.sourceNear(cell);
-          if (near) { this.selectedSource = near.id; this.notify(); return; }
-          const s = newSource({ ...this.template(), x, y, kind: this.sourceTemplate.countX * this.sourceTemplate.countY > 1 ? "array" : "point" });
-          s.name = `Source ${s.id}`;
-          this.sources.push(s);
-          this.selectedSource = s.id;
-          this.refreshSources();
-          this.notify();
-        }
-        return;
-      case "line":
-        if (phase === "down") this.lineDraft = newSource({ ...this.template(), kind: "line", x: Math.floor(start.x), y: Math.floor(start.y), x2: x, y2: y });
-        else if (this.lineDraft) { this.lineDraft.x2 = x; this.lineDraft.y2 = y; }
-        if (phase === "up" && this.lineDraft) {
-          const s = this.lineDraft;
-          this.lineDraft = null;
-          s.name = `Line ${s.id}`;
-          this.sources.push(s);
-          this.selectedSource = s.id;
-          this.refreshSources();
-          this.notify();
-        }
-        return;
-      case "optic":
-        if (phase === "down" && inside) {
-          const near = this.opticNear(cell);
-          if (near) { this.selectedOptic = near.id; this.notify(); return; }
-          const { id: _id, name: _name, ...tpl } = this.opticTemplate;
-          this.addOptic(newOptic(tpl.kind, { ...tpl, x, y }));
-        }
-        return;
-      case "laser":
-        if (phase === "down") {
-          if (!inside) return;
-          this.laserDraft = newSource({ ...this.template(), kind: "laser", x, y, x2: x, y2: y, angleDeg: this.sourceTemplate.angleDeg, beamWidth: this.sourceTemplate.beamWidth });
-        } else if (this.laserDraft && Math.hypot(cell.x - start.x, cell.y - start.y) > 4) {
-          // drag to aim
-          this.laserDraft.angleDeg = Math.round((Math.atan2(cell.y - start.y, cell.x - start.x) * 180) / Math.PI);
-        }
-        if (phase === "up" && this.laserDraft) {
-          const l = this.laserDraft;
-          this.laserDraft = null;
-          l.name = `Laser ${l.id}`;
-          this.sources.push(l);
-          this.selectedSource = l.id;
-          this.refreshSources();
-          this.notify();
-        }
-        return;
-      case "pointProbe":
-        if (phase === "down" && inside) { this.addProbe({ kind: "point", x, y, x2: x, y2: y, measurement: this.view_ === "field" ? "amplitude" : "intensity", mine: this.keepMine || undefined }); this.notify(); }
-        return;
-      case "lineProbe":
-        if (phase === "down") this.probeDraft = { id: 0, kind: "line", x: Math.floor(start.x), y: Math.floor(start.y), x2: x, y2: y, measurement: "intensity", color: "#fff", label: "" };
-        else if (this.probeDraft) { this.probeDraft.x2 = clampInt(x, 0, this.scene.width - 1); this.probeDraft.y2 = clampInt(y, 0, this.scene.height - 1); }
-        if (phase === "up" && this.probeDraft) {
-          const p = this.probeDraft;
-          this.probeDraft = null;
-          if (Math.hypot(p.x2 - p.x, p.y2 - p.y) >= 2) { this.addProbe({ kind: "line", x: p.x, y: p.y, x2: p.x2, y2: p.y2, measurement: "intensity", mine: this.keepMine || undefined }); this.notify(); }
-        }
-        return;
+  /** Is the selected thing still there? */
+  exists(sel: Selection): boolean {
+    switch (sel.kind) {
+      case "source": return this.sources.some(s => s.id === sel.id);
+      case "probe": return this.probes.some(p => p.id === sel.id);
+      case "shape": return this.shapes.some(s => s.id === sel.id);
+      case "optic": return this.optics.some(o => o.id === sel.id);
+      case "switch": return !!this.logic?.switches.some(s => s.id === sel.id);
+      case "detector": return !!this.logic?.detectors.some(s => s.id === sel.id);
+      case "transistor": return !!this.logic?.transistors.some(s => s.id === sel.id);
     }
   }
 
-  /** The source template without its id and name, for making a new source from it. */
-  private template(): Partial<SourceSpec> {
-    const { id: _id, name: _name, ...rest } = this.sourceTemplate;
-    // its own copy of the motion, so the new source and the template do not share one
-    return { ...rest, motion: rest.motion ? { ...rest.motion } : null };
-  }
+  private buildOverlay(): Overlay { return buildOverlay(this); }
 
-  /** Sources and probes can be dragged with the Pan tool (the sandbox and the kids' experiments). */
-  grabbable = false;
-  private grabbed:
-    | { kind: "source"; s: SourceSpec; x: number; y: number; x2: number; y2: number; baked?: SourceSpec["baked"] }
-    | { kind: "probe"; index: number; x: number; y: number; x2: number; y2: number }
-    | { kind: "optic"; o: OpticSpec; x: number; y: number; x2: number; y2: number }
-    | { kind: "detector"; d: Detector; dx: number; dy: number }
-    | { kind: "toggle"; id: string }
-    | null = null;
-
-  private grabRadius(): number { return Math.max(4, 8 * this.view.scale); }
-
-  /** A detector of the wave circuit under the cell. */
-  detectorNear(cell: Pt): Detector | undefined { return this.logic?.detectorNear(cell, Math.max(1, 3 * this.view.scale)); }
+  /** Sources and probes can be dragged with the Pan tool (all pages now; kept for pages that ask). */
+  grabbable = true;
 
   /** The probe under the cell (a point probe, a line probe's end or its line), or -1. */
   probeNear(cell: Pt): number {
-    const r = Math.max(4, 8 * this.view.scale);
-    return this.probes.findIndex(p => {
-      if (p.kind === "point") return Math.hypot(p.x + 0.5 - cell.x, p.y + 0.5 - cell.y) <= r;
-      const dx = p.x2 - p.x, dy = p.y2 - p.y, l2 = dx * dx + dy * dy || 1;
-      const t = Math.max(0, Math.min(1, ((cell.x - p.x) * dx + (cell.y - p.y) * dy) / l2));
-      return Math.hypot(p.x + t * dx - cell.x, p.y + t * dy - cell.y) <= r * 0.6;
-    });
+    const hit = this.selector.hit(cell, "pointProbe");
+    return hit ? this.probes.findIndex(p => p.id === hit.id) : -1;
   }
 
-  /** Drags a source (with its line end or its fixed elements) or a probe by whole cells. */
-  private grab(phase: "down" | "move" | "up", cell: Pt, start: Pt): void {
-    if (phase === "down") {
-      if (!this.grabbable) {
-        const i = this.probeNear(cell), p = this.probes[i];
-        if (p?.mine) { this.grabbed = { kind: "probe", index: i, x: p.x, y: p.y, x2: p.x2, y2: p.y2 }; return; }
-        const sw = this.logic?.switchAt(cell, this.grabRadius());
-        if (sw) this.grabbed = { kind: "toggle", id: sw.id };
-        return;
-      }
-      const s = this.sourceNear(cell);
-      if (s) {
-        this.grabbed = { kind: "source", s, x: s.x, y: s.y, x2: s.x2, y2: s.y2, baked: s.baked };
-        this.selectedSource = s.id;
-        this.notify();
-        return;
-      }
-      const i = this.probeNear(cell);
-      if (i >= 0) { const p = this.probes[i]; this.grabbed = { kind: "probe", index: i, x: p.x, y: p.y, x2: p.x2, y2: p.y2 }; return; }
-      const d = this.detectorNear(cell);
-      if (d) { this.grabbed = { kind: "detector", d, dx: 0, dy: 0 }; return; }
-      const o = this.opticNear(cell);
-      if (o) { this.grabbed = { kind: "optic", o, x: o.x, y: o.y, x2: o.x, y2: o.y }; this.selectedOptic = o.id; this.notify(); }
-      return;
-    }
-    if (this.grabbed?.kind === "toggle") {
-      // a click on an input switch flips it
-      if (phase === "up") { this.release(); this.logic?.toggle(this.grabbed.id); this.running = true; this.grabbed = null; this.notify(); }
-      return;
-    }
-    if (this.grabbed?.kind === "detector") {
-      const g = this.grabbed, dx = Math.round(cell.x - start.x), dy = Math.round(cell.y - start.y);
-      if (dx !== g.dx || dy !== g.dy) { this.logic?.moveDetector(g.d, dx - g.dx, dy - g.dy); g.dx = dx; g.dy = dy; }
-      if (phase === "up") { this.grabbed = null; this.notify(); }
-      return;
-    }
-    if (this.grabbed?.kind === "optic") {
-      const g = this.grabbed, before = opticBounds(g.o);
-      g.o.x = Math.max(0, Math.min(this.scene.width - 1, g.x + Math.round(cell.x - start.x)));
-      g.o.y = Math.max(0, Math.min(this.scene.height - 1, g.y + Math.round(cell.y - start.y)));
-      this.updateOptic(g.o, before);
-      if (phase === "up") { this.grabbed = null; this.notify(); }
-      return;
-    }
-    const g = this.grabbed;
-    if (!g) return;
-    const W = this.scene.width - 1, H = this.scene.height - 1;
-    // keep the whole object inside the scene
-    const dx = Math.max(-Math.min(g.x, g.x2), Math.min(W - Math.max(g.x, g.x2), Math.round(cell.x - start.x)));
-    const dy = Math.max(-Math.min(g.y, g.y2), Math.min(H - Math.max(g.y, g.y2), Math.round(cell.y - start.y)));
-    if (g.kind === "source") {
-      const s = g.s;
-      s.x = g.x + dx; s.y = g.y + dy; s.x2 = g.x2 + dx; s.y2 = g.y2 + dy;
-      if (g.baked) s.baked = g.baked.map(e => ({ ...e, x: e.x + dx, y: e.y + dy }));
-      this.refreshSources();
-      this.logic?.drawLabels();
-      // a click (no drag) on an input switch's emitter flips it
-      const sw = this.logic?.switches.find(q => q.sources.includes(s));
-      if (phase === "up" && sw && dx === 0 && dy === 0) { this.release(); this.logic!.toggle(sw.id); this.running = true; }
-    } else if (phase === "up") {
-      const list = this.probeList();
-      list[g.index] = { ...list[g.index], x: g.x + dx, y: g.y + dy, x2: g.x2 + dx, y2: g.y2 + dy };
-      this.setProbes(list);
-    } else {
-      // show the probe moving; it is measured again from where it is dropped
-      const p = this.probes[g.index];
-      p.x = g.x + dx; p.y = g.y + dy; p.x2 = g.x2 + dx; p.y2 = g.y2 + dy;
-    }
-    if (phase === "up") { this.grabbed = null; this.notify(); }
+  opticNear(cell: Pt): OpticSpec | undefined {
+    const slack = Math.max(3, 6 * this.view.scale);
+    for (let i = this.optics.length - 1; i >= 0; i--) if (opticHit(this.optics[i], cell.x, cell.y, slack)) return this.optics[i];
+    return undefined;
   }
 
   /** Listeners for changes the sandbox panel shows (sources, probes, selection). */
@@ -854,62 +725,8 @@ export class Sim {
     return this.sources.find(s => { const p = this.sourcePos(s); return Math.hypot(p.x + 0.5 - cell.x, p.y + 0.5 - cell.y) <= r; });
   }
 
-  private lastPaint: Pt | null = null;
   /** How the paint tools draw: freehand, a straight line, a box outline or a filled box. */
   paintShape: PaintShape = "free";
-  /** A straight line or box being dragged out (painted when the mouse is let go). */
-  private shapeDraft: { a: Pt; b: Pt; erase: boolean } | null = null;
-
-  /** Paint tools: freehand dabs close enough together along the pointer path that there are no gaps, or a shape. */
-  private stroke(phase: "down" | "move" | "up", cell: Pt, m: Material | "absorber", erase = false): void {
-    if (this.paintShape !== "free") return this.shapeStroke(phase, cell, m, erase);
-    if (phase === "up") { this.lastPaint = null; return; }
-    const from = phase === "down" || !this.lastPaint ? cell : this.lastPaint;
-    const dist = Math.hypot(cell.x - from.x, cell.y - from.y);
-    const n = Math.max(1, Math.ceil(dist / Math.max(0.5, this.brush * 0.5)));
-    for (let k = phase === "down" ? 0 : 1; k <= n; k++) {
-      const p = { x: from.x + ((cell.x - from.x) * k) / n, y: from.y + ((cell.y - from.y) * k) / n };
-      this.applyStamp({ kind: "disc", x: Math.floor(p.x) + 0.5, y: Math.floor(p.y) + 0.5, r: this.brush }, m, erase);
-    }
-    this.lastPaint = cell;
-  }
-
-  private shapeStroke(phase: "down" | "move" | "up", cell: Pt, m: Material | "absorber", erase: boolean): void {
-    const p = { x: Math.floor(cell.x) + 0.5, y: Math.floor(cell.y) + 0.5 };
-    if (phase === "down") { this.shapeDraft = { a: p, b: p, erase }; return; }
-    const d = this.shapeDraft;
-    if (!d) return;
-    d.b = this.paintShape === "line" ? snapAngle(d.a, p) : p;
-    if (phase !== "up") return;
-    const st = this.draftStamp();
-    this.shapeDraft = null;
-    if (st) this.applyStamp(st, m, erase);
-  }
-
-  private draftStamp(): Stamp | null {
-    const d = this.shapeDraft;
-    if (!d) return null;
-    const { a, b } = d, r = this.brush;
-    if (this.paintShape === "line") return { kind: "segment", x0: a.x, y0: a.y, x1: b.x, y1: b.y, r };
-    if (Math.abs(b.x - a.x) < 1 || Math.abs(b.y - a.y) < 1) return null;
-    return this.paintShape === "box" ? { kind: "box", x0: a.x, y0: a.y, x1: b.x, y1: b.y, r } : { kind: "filledBox", x0: a.x, y0: a.y, x1: b.x, y1: b.y };
-  }
-
-  /** Paints into the base layer, redraws (optical elements stay on top); the eraser also takes sources away. */
-  private applyStamp(st: Stamp, m: Material | "absorber", erase: boolean): void {
-    paintStamp(this.baseScene, st, m);
-    const b = stampBounds(st);
-    this.rasterize(b.x0 - 1, b.y0 - 1, b.x1 + 1, b.y1 + 1);
-    if (!erase) return;
-    const s = this.scene, W = s.width;
-    let removed = false;
-    for (let y = Math.max(0, Math.floor(b.y0)); y <= Math.min(s.height - 1, Math.ceil(b.y1)); y++)
-      for (let x = Math.max(0, Math.floor(b.x0)); x <= Math.min(W - 1, Math.ceil(b.x1)); x++)
-        if (s.imageLevel[y * W + x] && stampDepth(st, x + 0.5, y + 0.5).depth >= 0) { s.imageLevel[y * W + x] = 0; removed = true; }
-    const gone = this.sources.filter(src => src.kind !== "line" && stampDepth(st, src.x + 0.5, src.y + 0.5).depth >= 0);
-    if (gone.length) this.removeSources(gone);
-    else if (removed) { this.refreshSources(); this.notify(); }
-  }
 
   /**
    * Sets the brightness of these views (default: the one shown) so that the strongest 0.5% of the cells just reach
@@ -997,7 +814,10 @@ export class Sim {
   }
 }
 
-function clampInt(v: number, a: number, b: number): number { return Math.max(a, Math.min(b, v)); }
+/** Bounds of the shapes and optical elements now in the sim. */
+function boxes4(sim: Sim): { x0: number; y0: number; x1: number; y1: number }[] {
+  return [...sim.shapes.map(shapeBounds), ...sim.optics.map(opticBounds)];
+}
 
 /** Gray scale, used when the colour scheme files cannot be loaded. */
 function defaultLut(q: Quantity): number[][] {

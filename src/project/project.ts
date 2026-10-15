@@ -8,6 +8,8 @@ import { type SourceSpec, type SourceElement, type SourceMotion, newSource, newM
 import type { Sim, NewProbe, Measurement } from "../sim/sim";
 import { readZip, writeZip, type ZipEntry } from "./zip";
 import { Circuit, type LogicJSON } from "../circuits/circuit";
+import { type ShapeSpec, shapeFromJSON } from "../core/shapes";
+import { type OpticSpec, OPTIC_KINDS, newOptic } from "../core/optics";
 
 type Dict = Record<string, unknown>;
 
@@ -88,6 +90,8 @@ export interface LoadedProject {
   scene: Scene;
   sources: SourceSpec[];
   probes: NewProbe[];
+  /** Optical elements and shapes (web only): drawn on top of the scene, movable. */
+  optics: OpticSpec[];
   sim: Dict;
   warnings: string[];
 }
@@ -130,7 +134,17 @@ export async function openProject(files: File[]): Promise<LoadedProject> {
     useSources: bool(sc, "use_sources", false),
   };
   let scene: Scene;
-  if (info.mode === "image") {
+  // a web project with objects also keeps the scene without them (web_base_image): the objects then stay movable
+  const baseName = text(sc, "web_base_image", "");
+  const baseImg = baseName ? entries.find(e => e.path.toLowerCase() === (root + baseName).toLowerCase()) : undefined;
+  if (baseImg) {
+    info.imagePath = text(sc, "image_file", "");
+    const d = await decodeImage(baseImg.blob);
+    checkSize(d.width, d.height);
+    scene = Scene.fromImage(d.rgba, d.width, d.height, info.useSources);
+    info.mode = "image";
+    info.dirty = true;
+  } else if (info.mode === "image") {
     const want = (root + info.imagePath).replace(/\\/g, "/").toLowerCase();
     const base = info.imagePath.replace(/\\/g, "/").split("/").pop()!.toLowerCase();
     const img = entries.find(e => e.path.toLowerCase() === want)
@@ -232,7 +246,20 @@ export async function openProject(files: File[]): Promise<LoadedProject> {
       });
     }
 
-  return { meta, sceneInfo: info, scene, sources, probes, sim: sec(raw, "simulation"), warnings };
+  // shapes and optical elements (web only; without a base image they are already part of the scene image)
+  const optics: OpticSpec[] = [];
+  if (baseImg) {
+    const shapes = Array.isArray(raw.web_shapes) ? (raw.web_shapes as Dict[]).map(shapeFromJSON).filter((s): s is ShapeSpec => !!s) : [];
+    scene.shapes = shapes;
+    if (Array.isArray(raw.web_optics))
+      for (const o of raw.web_optics as Dict[]) {
+        const kind = o.kind as OpticSpec["kind"];
+        if (!OPTIC_KINDS.some(k => k.kind === kind)) continue;
+        optics.push(newOptic(kind, { name: text(o, "name", ""), x: num(o, "x", 0), y: num(o, "y", 0), angleDeg: num(o, "angleDeg", 0), n: num(o, "n", 1.5, 0.9, 10),
+          size: num(o, "size", 200, 1), radius: num(o, "radius", 200, 1), thickness: num(o, "thickness", 20, 1) }));
+      }
+  }
+  return { meta, sceneInfo: info, scene, sources, probes, optics, sim: sec(raw, "simulation"), warnings };
 }
 
 function checkSize(w: number, h: number): void {
@@ -263,7 +290,7 @@ export function applyProject(sim: Sim, p: LoadedProject): void {
     const f = sim.schemeFile(text(s, key, q === "field" ? "Default_Field" : "Default_Intensity"));
     if (f) sim.scheme[q] = f;
   }
-  sim.load(p.scene, p.sources, p.probes);
+  sim.load(p.scene, p.sources, p.probes, p.optics);
   // a wave circuit built in the sandbox (web only: the Windows app keeps the key but runs the sources as they are)
   const logic = p.meta.raw?.web_logic;
   if (logic && typeof logic === "object") {
@@ -312,6 +339,19 @@ export async function saveProject(sim: Sim): Promise<{ blob: Blob; fileName: str
     sc.mode = "image";
     sc.image_file = name;
     files.push({ name: `${folder}/${name}`, data: new Uint8Array(await (await encodeScene(scene)).arrayBuffer()) });
+  }
+  // shapes and optical elements: the scene image above has them painted in (for the Windows app); the web version
+  // also keeps them as objects and the scene without them, so they stay movable
+  if (sim.shapes.length || sim.optics.length) {
+    const baseName = `scene_images/${safeName(meta.name)}_base.png`;
+    sc.web_base_image = baseName;
+    files.push({ name: `${folder}/${baseName}`, data: new Uint8Array(await (await encodeScene(sim.baseScene)).arrayBuffer()) });
+    cfg.web_shapes = sim.shapes.map(s => ({ ...s }));
+    cfg.web_optics = sim.optics.map(o => ({ ...o }));
+  } else {
+    delete sc.web_base_image;
+    delete cfg.web_shapes;
+    delete cfg.web_optics;
   }
   sc.damping_edge_enabled = scene.edgeOn;
   sc.damping_edge_size_px = Math.max(1, Math.round(scene.edge));

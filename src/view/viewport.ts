@@ -26,10 +26,12 @@ export interface Overlay {
   /** Outlined rectangles of cells (the detectors of a wave circuit). */
   boxes: { x: number; y: number; w: number; h: number; color: string }[];
   /** Shapes being drawn: a polyline (closed: a polygon), with a see-through band `width` cells wide, or filled. */
-  paths: { pts: Pt[]; closed?: boolean; width?: number; fill?: boolean; color: string }[];
+  paths: { pts: Pt[]; closed?: boolean; width?: number; fill?: boolean; color: string; solid?: boolean }[];
+  /** Drag handles of the selected object (small squares). */
+  handles: Pt[];
 }
 
-export const emptyOverlay = (): Overlay => ({ sources: [], pointProbes: [], lineProbes: [], labels: [], arrows: [], boxes: [], paths: [] });
+export const emptyOverlay = (): Overlay => ({ sources: [], pointProbes: [], lineProbes: [], labels: [], arrows: [], boxes: [], paths: [], handles: [] });
 
 export interface Measure {
   ruler: { a: Pt; b: Pt } | null;
@@ -56,8 +58,10 @@ export class Viewport {
   /** Called for paint/place tools: phase "down" | "move" | "up", with the cell under the pointer. */
   onTool: (tool: Tool, phase: "down" | "move" | "up", cell: Pt, start: Pt) => void = () => {};
   onMeasure: () => void = () => {};
-  /** Something movable (a source, a probe) under this cell? Then the Pan tool drags it instead of the view. */
+  /** Something the active tool can pick up under this cell (an object, a handle)? Then a drag moves it instead. */
   canGrab: (cell: Pt) => boolean = () => false;
+  /** A click (no drag) on an empty spot with the hand tool. */
+  onTap: (cell: Pt) => void = () => {};
   onGrab: (phase: "down" | "move" | "up", cell: Pt, start: Pt) => void = () => {};
   onHover: (cell: Pt | null) => void = () => {};
   private pointers = new Map<number, Pt>();
@@ -193,8 +197,8 @@ export class Viewport {
       return;
     }
     const cell = this.toCell(p.x, p.y);
-    if (e.button === 0 && !e.shiftKey && (this.tool === "pan" || this.tool === "source" || this.tool === "optic") && this.canGrab(cell)) {
-      // pick up the source or probe under the pointer
+    if (e.button === 0 && !e.shiftKey && this.tool !== "ruler" && this.tool !== "protractor" && this.canGrab(cell)) {
+      // pick up the object under the pointer (which ones a tool can pick up is for the simulation to say)
       this.drag = { mode: "grab", start: p, startCell: cell, offX: this.offX, offY: this.offY };
       this.overlayCanvas.style.cursor = "grabbing";
       this.onGrab("down", cell, cell);
@@ -245,7 +249,7 @@ export class Viewport {
     const cell = this.toCell(p.x, p.y);
     this.onHover(cell);
     if (!d) {
-      if (this.tool === "pan" || this.tool === "source" || this.tool === "optic") this.overlayCanvas.style.cursor = this.canGrab(cell) ? "grab" : "";
+      if (this.tool !== "ruler" && this.tool !== "protractor") this.overlayCanvas.style.cursor = this.canGrab(cell) ? "grab" : "";
       return;
     }
     if (d.mode === "grab") { this.onGrab("move", cell, d.startCell); return; }
@@ -282,6 +286,8 @@ export class Viewport {
     this.overlayCanvas.style.cursor = "";
     const cell = this.toCell(this.local(e).x, this.local(e).y);
     if (d?.mode === "grab") { this.onGrab("up", cell, d.startCell); return; }
+    // a click on an empty spot with the hand tool (no drag): deselect
+    if (d?.mode === "pan" && !this.mode3d && this.tool === "pan" && e.button === 0 && Math.hypot(this.local(e).x - d.start.x, this.local(e).y - d.start.y) < 4) { this.onTap(cell); return; }
     if (!d || d.mode !== "tool" || this.mode3d) return;
     if (this.tool === "protractor") {
       if (this.protractorStage === 2) this.protractorStage = 0;
@@ -335,7 +341,12 @@ export class Viewport {
       c.lineJoin = "round";
       if (p.fill) { c.globalAlpha = 0.35; c.fillStyle = p.color; c.fill(); c.globalAlpha = 1; }
       if (p.width) { c.globalAlpha = 0.35; c.strokeStyle = p.color; c.lineWidth = Math.max(2, p.width * cellPx); c.stroke(); c.globalAlpha = 1; }
-      c.strokeStyle = p.color; c.lineWidth = 1.5; c.setLineDash([6, 4]); c.stroke(); c.setLineDash([]);
+      c.strokeStyle = p.color; c.lineWidth = 1.5; c.setLineDash(p.solid ? [] : [6, 4]); c.stroke(); c.setLineDash([]);
+    }
+    for (const hd of o.handles) {
+      const q = S(hd.x, hd.y);
+      c.fillStyle = "#ffffff"; c.strokeStyle = "rgba(0,0,0,.7)"; c.lineWidth = 1.5;
+      c.fillRect(q.x - 4.5, q.y - 4.5, 9, 9); c.strokeRect(q.x - 4.5, q.y - 4.5, 9, 9);
     }
     for (const b of o.boxes) {
       const p = S(b.x, b.y), q = S(b.x + b.w, b.y + b.h);

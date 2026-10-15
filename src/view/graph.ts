@@ -96,9 +96,13 @@ export class Graph {
     for (const s of series) {
       c.strokeStyle = s.color; c.lineWidth = 1.5;
       c.beginPath();
+      // gaps (NaN) lift the pen: a probe placed later has no values before it existed
+      let pen = false;
       for (let i = 0; i < s.values.length; i++) {
-        const y = ys(s.values[i]);
-        if (i === 0) c.moveTo(xs(i), y); else c.lineTo(xs(i), y);
+        const v = s.values[i];
+        if (!Number.isFinite(v)) { pen = false; continue; }
+        const y = ys(v);
+        if (pen) c.lineTo(xs(i), y); else { c.moveTo(xs(i), y); pen = true; }
       }
       c.stroke();
     }
