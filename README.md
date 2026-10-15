@@ -1,15 +1,25 @@
-# Wave Dude 2D — web
+# Wave Dude 2D for the web
 
-The Wave Dude 2D wave simulator in the browser (WebGL2, no plug-ins), with guided experiments from Kids to Research level, a free Sandbox, and "How it works" chapters on the physics, the maths and the code.
+An interactive 2D wave simulator that runs in the browser (WebGL2, nothing to install). Draw a scene, add wave sources, glass, mirrors and walls, and watch the waves move, bend, interfere and diffract. It comes with guided experiments for every level, from kids to researchers, a free sandbox, and "How it works" pages on the physics, the maths and the code.
 
-## Working with the Windows app
+**Status:** not online yet. It will be hosted soon; until then you can run it yourself (see below).
 
-- **Sandbox → Project → Open…** takes a `.zip` of a Windows project folder, the folder itself (*Open folder…*), or its `configuration.json` together with the scene image.
-- **Save .zip** writes the same layout (`configuration.json`, `scene_images/`, …). Unzip it into the Windows projects folder to open it there. Settings this version does not use are kept unchanged; web-only source settings are stored in extra `web_*` keys.
-- Composite sources keep their saved element lists. The Windows app's run-time re-randomizing of off-widths is not done here (each element keeps its first off-width); you get a note when a project uses it.
-- A scene painted in the browser is saved as a new scene image (red = n × 100, so the glass tool stops at n = 2.55).
-- Colour schemes made in the editor (*Display → Edit colour schemes*) are kept in the browser and can be downloaded as the same JSON files as `ColorSchemeList/`.
-- **Video**: Sandbox → Video renders frame by frame to MP4 (H.264 when the browser can, otherwise VP9/AV1).
+## Where it comes from
+
+This project is a port of other people's work to the web:
+
+- **Wave Dude 2D** by JJM Vleggaar ([Huygens Optics](https://www.patreon.com/c/huygens_optics)): the original simulator for Windows (VB.NET, OpenCL), released under GPL-3.0. This project aims to bring its code, its ideas and its experiments to the browser, so anyone can use it without installing anything.
+- **[WaveSimulator2D](https://github.com/0x23/WaveSimulator2D)** by 0x23: the Python/CuPy wave simulator that the core of Wave Dude 2D (the wave step, the scene rules, the field and intensity pictures) is based on.
+- The colour schemes come from Wave Dude 2D, which sampled most of them from [matplotlib](https://matplotlib.org/) and [seaborn](https://seaborn.pydata.org/) colour maps and two from WaveSimulator2D.
+- Video export uses [Mediabunny](https://mediabunny.dev) (MPL-2.0).
+
+All credit for the original ideas goes to them.
+
+## Made with AI, not verified
+
+The code of this web version was written with AI (Claude, by Anthropic). It has **not** been reviewed or verified by people, so expect bugs, and check numbers and explanations before relying on them.
+
+It is meant for people to play with, learn from and improve. Issues and pull requests are welcome.
 
 ## Run it
 
@@ -30,4 +40,4 @@ docker compose up -d --build                    # http://localhost:8090 (bound t
 
 ## Licence
 
-GPL-3.0-or-later, like Wave Dude 2D (JJM Vleggaar, Huygens Optics). The simulation core is based on WaveSimulator2D by 0x23.
+GPL-3.0-or-later, like Wave Dude 2D: see [LICENSE](LICENSE). Keep it open source: you may use, study, change and share it, and if you share a changed version, share its source under the same licence.
