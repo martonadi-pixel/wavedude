@@ -22,6 +22,7 @@ export const SHORTCUTS: [string, string][] = [
   ["E", "Eraser"],
   ["Delete", "Delete the selected object"], ["Esc", "Cancel what you are placing · deselect · back to Select"],
   ["Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"], ["Ctrl+D", "Duplicate the selected object"], ["Arrow keys", "Move the selected object (Shift: 10 cells)"],
+  [", / .", "Turn the selected object 15° left / right (with Shift: 1°)"], ["Right-click", "Menu for the object under the pointer (touch: hold a finger still)"],
   ["[ / ]", "Thinner / thicker brush"], ["?", "This list"],
 ];
 
@@ -47,6 +48,10 @@ export function installKeyboard(host: KeyboardHost): void {
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
       sim.selector.nudge(key === "ArrowLeft" ? -step : key === "ArrowRight" ? step : 0, key === "ArrowUp" ? -step : key === "ArrowDown" ? step : 0);
+      return;
+    }
+    if ((key === "," || key === "." || key === "<" || key === ">") && sim.selection) {
+      if (sim.selector.turn((key === "," ? -15 : key === "." ? 15 : key === "<" ? -1 : 1))) e.preventDefault();
       return;
     }
     // running and the view

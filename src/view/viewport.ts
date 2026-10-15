@@ -27,8 +27,8 @@ export interface Overlay {
   boxes: { x: number; y: number; w: number; h: number; color: string }[];
   /** Shapes being drawn: a polyline (closed: a polygon), with a see-through band `width` cells wide, or filled. */
   paths: { pts: Pt[]; closed?: boolean; width?: number; fill?: boolean; color: string; solid?: boolean }[];
-  /** Drag handles of the selected object (small squares). */
-  handles: Pt[];
+  /** Drag handles of the selected object: small squares (ends, sizes), round ones turn it. */
+  handles: (Pt & { round?: boolean })[];
 }
 
 export const emptyOverlay = (): Overlay => ({ sources: [], pointProbes: [], lineProbes: [], labels: [], arrows: [], boxes: [], paths: [], handles: [] });
@@ -64,6 +64,13 @@ export class Viewport {
   onTap: (cell: Pt) => void = () => {};
   onGrab: (phase: "down" | "move" | "up", cell: Pt, start: Pt) => void = () => {};
   onHover: (cell: Pt | null) => void = () => {};
+  /** A right-click, or a long press on a touch screen, at this cell (client: where on the page, for a menu). */
+  onContext: (cell: Pt, client: Pt) => void = () => {};
+  /** The cell under the mouse (null when it is off the picture or in 3D). */
+  hoverCell: Pt | null = null;
+  /** True while the pointer is held down on the picture. */
+  get pressed(): boolean { return this.drag !== null; }
+  private longPress: { timer: number; at: Pt; client: Pt } | null = null;
   private pointers = new Map<number, Pt>();
   private drag: { mode: "pan" | "tool" | "pinch" | "grab"; start: Pt; startCell: Pt; offX: number; offY: number; dist?: number; scale?: number; mid?: Pt } | null = null;
   private protractorStage = 0;
@@ -82,7 +89,7 @@ export class Viewport {
     this.overlayCanvas.addEventListener("pointermove", e => this.move(e));
     this.overlayCanvas.addEventListener("pointerup", e => this.up(e));
     this.overlayCanvas.addEventListener("pointercancel", e => this.up(e));
-    this.overlayCanvas.addEventListener("pointerleave", () => this.onHover(null));
+    this.overlayCanvas.addEventListener("pointerleave", () => { this.hoverCell = null; this.onHover(null); });
     this.overlayCanvas.addEventListener("wheel", e => this.wheel(e), { passive: false });
     this.overlayCanvas.addEventListener("contextmenu", e => e.preventDefault());
     this.resize();
@@ -181,9 +188,11 @@ export class Viewport {
   }
 
   private down(e: PointerEvent): void {
-    this.overlayCanvas.setPointerCapture(e.pointerId);
+    // (fails for a pointer the browser no longer tracks; the drag then simply ends at the picture's edge)
+    try { this.overlayCanvas.setPointerCapture(e.pointerId); } catch { /* nothing to capture */ }
     const p = this.local(e);
     this.pointers.set(e.pointerId, p);
+    this.cancelLongPress();
     if (this.pointers.size === 2) {
       // two fingers: pinch zoom and pan (cancels a tool drag that the first finger started)
       const [a, b] = [...this.pointers.values()];
@@ -199,7 +208,11 @@ export class Viewport {
       return;
     }
     const cell = this.toCell(p.x, p.y);
-    if (e.button === 0 && !e.shiftKey && this.tool !== "ruler" && this.tool !== "protractor" && this.canGrab(cell)) {
+    const grab = e.button === 0 && !e.shiftKey && this.tool !== "ruler" && this.tool !== "protractor" && this.canGrab(cell);
+    // a finger held still on an object (or anywhere with the hand tool) opens the menu, like a right-click
+    if (e.pointerType === "touch" && (grab || this.tool === "pan"))
+      this.longPress = { at: p, client: { x: e.clientX, y: e.clientY }, timer: window.setTimeout(() => this.fireLongPress(), 550) };
+    if (grab) {
       // pick up the object under the pointer (which ones a tool can pick up is for the simulation to say)
       this.drag = { mode: "grab", start: p, startCell: cell, offX: this.offX, offY: this.offY };
       this.overlayCanvas.style.cursor = "grabbing";
@@ -230,6 +243,7 @@ export class Viewport {
     if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, p);
     const d = this.drag;
     if (this.mode3d) {
+      this.hoverCell = null;
       this.onHover(null);
       if (!d) return;
       if (d.mode === "pinch" && this.pointers.size >= 2) {
@@ -249,6 +263,8 @@ export class Viewport {
       return;
     }
     const cell = this.toCell(p.x, p.y);
+    if (this.longPress && Math.hypot(p.x - this.longPress.at.x, p.y - this.longPress.at.y) > 8) this.cancelLongPress();
+    this.hoverCell = e.pointerType === "touch" ? null : cell;
     this.onHover(cell);
     if (!d) {
       if (this.tool !== "ruler" && this.tool !== "protractor") this.overlayCanvas.style.cursor = this.canGrab(cell) ? "grab" : "";
@@ -282,12 +298,18 @@ export class Viewport {
 
   private up(e: PointerEvent): void {
     this.pointers.delete(e.pointerId);
+    this.cancelLongPress();
     const d = this.drag;
     if (this.pointers.size > 0) return;
     this.drag = null;
     this.overlayCanvas.style.cursor = "";
     const cell = this.toCell(this.local(e).x, this.local(e).y);
     if (d?.mode === "grab") { this.onGrab("up", cell, d.startCell); return; }
+    // a right-click that did not drag (a right-drag moves the view)
+    if (d?.mode === "pan" && !this.mode3d && e.button === 2 && Math.hypot(this.local(e).x - d.start.x, this.local(e).y - d.start.y) < 4) {
+      this.onContext(cell, { x: e.clientX, y: e.clientY });
+      return;
+    }
     // a click on an empty spot with the hand tool (no drag): deselect
     if (d?.mode === "pan" && !this.mode3d && this.tool === "pan" && e.button === 0 && Math.hypot(this.local(e).x - d.start.x, this.local(e).y - d.start.y) < 4) { this.onTap(cell); return; }
     if (!d || d.mode !== "tool" || this.mode3d) return;
@@ -299,6 +321,24 @@ export class Viewport {
     } else {
       this.onTool(this.tool, "up", cell, d.startCell);
     }
+  }
+
+  private cancelLongPress(): void {
+    if (this.longPress) clearTimeout(this.longPress.timer);
+    this.longPress = null;
+  }
+
+  /** The finger was held still: end what the press started (nothing has moved) and open the menu. */
+  private fireLongPress(): void {
+    const lp = this.longPress, d = this.drag;
+    this.longPress = null;
+    if (!lp || !d || this.mode3d) return;
+    this.drag = null;
+    this.pointers.clear();
+    const cell = this.toCell(lp.at.x, lp.at.y);
+    if (d.mode === "grab") this.onGrab("up", d.startCell, d.startCell);
+    navigator.vibrate?.(15);
+    this.onContext(cell, lp.client);
   }
 
   private wheel(e: WheelEvent): void {
@@ -348,7 +388,8 @@ export class Viewport {
     for (const hd of o.handles) {
       const q = S(hd.x, hd.y);
       c.fillStyle = "#ffffff"; c.strokeStyle = "rgba(0,0,0,.7)"; c.lineWidth = 1.5;
-      c.fillRect(q.x - 4.5, q.y - 4.5, 9, 9); c.strokeRect(q.x - 4.5, q.y - 4.5, 9, 9);
+      if (hd.round) { c.beginPath(); c.arc(q.x, q.y, 5.5, 0, Math.PI * 2); c.fill(); c.stroke(); }
+      else { c.fillRect(q.x - 4.5, q.y - 4.5, 9, 9); c.strokeRect(q.x - 4.5, q.y - 4.5, 9, 9); }
     }
     for (const b of o.boxes) {
       const p = S(b.x, b.y), q = S(b.x + b.w, b.y + b.h);

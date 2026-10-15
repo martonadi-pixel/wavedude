@@ -11,6 +11,7 @@ import { Rail } from "./app/rail";
 import { ToolOptions } from "./app/options";
 import { Toolbar, zoomCluster } from "./app/toolbar";
 import { Graphs } from "./app/graphs";
+import { openContextMenu } from "./app/context-menu";
 import { installKeyboard } from "./app/keyboard";
 import { TOOLS } from "./app/tools";
 import { renderExperimentList, openExperiment } from "./features/experiments/guide";
@@ -97,6 +98,7 @@ function start(): void {
   });
 
   installKeyboard({ sim, allowed: t => rail.isAllowed(t), pick });
+  sim.view.onContext = (cell, client) => openContextMenu({ sim, allowed: t => rail.isAllowed(t) }, cell, client);
 
   // ---------------------------------------------------------------- routing
   const shell: Shell = {

@@ -10,7 +10,10 @@ import { type OpticSpec, newOptic, opticBounds } from "../core/optics";
 
 export type SelKind = "source" | "probe" | "optic" | "shape" | "switch" | "detector" | "transistor";
 export interface Selection { kind: SelKind; id: number | string }
-export type Handle = "body" | "a" | "b" | "aim";
+/** body: the whole thing; a, b: the ends of a line; aim: a laser's direction; rot: turns it; len, wid, size: resize it. */
+export type Handle = "body" | "a" | "b" | "aim" | "rot" | "len" | "wid" | "size";
+/** Handles drawn round (they turn the object); the others are squares. */
+export const ROUND_HANDLES: ReadonlySet<Handle> = new Set<Handle>(["aim", "rot"]);
 interface Hit extends Selection { handle: Handle; src?: SourceSpec }
 
 /** What each placing tool may pick up (the hand tool picks up anything). */
@@ -25,6 +28,21 @@ const distToSeg = (p: Pt, a: Pt, b: Pt) => {
   return Math.hypot(a.x + t * dx - p.x, a.y + t * dy - p.y);
 };
 const c = (x: number, y: number): Pt => ({ x: x + 0.5, y: y + 0.5 });
+const DEG = 180 / Math.PI;
+/** An angle from a drag: whole degrees, pulled onto multiples of 15° when within 3° of one. */
+export function snapTurn(deg: number): number {
+  const d = Math.round(deg), m = Math.round(d / 15) * 15;
+  const v = Math.abs(d - m) <= 3 ? m : d;
+  return ((v % 360) + 540) % 360 - 180;
+}
+/** A point at (u, v) in the frame of something at (x, y) turned by angleDeg. */
+const frame = (x: number, y: number, angleDeg: number) => {
+  const a = angleDeg / DEG, ca = Math.cos(a), sa = Math.sin(a);
+  return {
+    at: (u: number, v: number): Pt => ({ x: x + u * ca - v * sa, y: y + u * sa + v * ca }),
+    local: (p: Pt) => ({ u: (p.x - x) * ca + (p.y - y) * sa, v: -(p.x - x) * sa + (p.y - y) * ca }),
+  };
+};
 
 export class Selector {
   private drag: { hit: Hit; orig: unknown; moved: boolean; last: Pt; start: Pt } | null = null;
@@ -32,6 +50,8 @@ export class Selector {
   constructor(private sim: Sim) {}
 
   private get r(): number { return Math.max(4, 8 * this.sim.view.scale); }
+  /** How far a turning handle stands off the object: about 26 screen pixels. */
+  private get stand(): number { return Math.max(6, 26 * this.sim.view.scale); }
 
   /** The selected thing's drag handles, in cells. */
   handles(sel: Selection | null = this.sim.selection): [Handle, Pt][] {
@@ -47,6 +67,21 @@ export class Selector {
     } else if (sel.kind === "shape") {
       const s = sim.shapes.find(q => q.id === sel.id);
       if (s && (s.kind === "line" || s.kind === "slits")) { const [a, b] = shapeEnds(s); return [["a", a], ["b", b]]; }
+      if (s) {
+        // box and ellipse: drag the right side for length, the bottom for width, the knob above to turn
+        const f = frame(s.x, s.y, s.angleDeg), L = s.length / 2, W = s.width / 2;
+        return [["len", f.at(L, 0)], ["wid", f.at(0, W)], ["rot", f.at(0, -W - this.stand)]];
+      }
+    } else if (sel.kind === "optic") {
+      const o = sim.optics.find(q => q.id === sel.id);
+      if (o) {
+        // the aperture runs across the optical axis: the bottom end resizes it, the knob beyond the top turns it
+        const f = frame(o.x, o.y, o.angleDeg), H = o.size / 2;
+        return [["size", f.at(0, H)], ["rot", f.at(0, -H - this.stand)]];
+      }
+    } else if (sel.kind === "detector") {
+      const d = sim.logic?.detectors.find(q => q.id === sel.id);
+      if (d?.areas.length === 1) { const a = d.areas[0]; return [["size", { x: a.x + a.w, y: a.y + a.h }]]; }
     }
     return [];
   }
@@ -86,7 +121,7 @@ export class Selector {
       const hit = this.hit(cell);
       if (!hit) return;
       sim.select({ kind: hit.kind, id: hit.id });
-      sim.undo.begin(hit.handle === "body" ? "Move" : "Change");
+      sim.undo.begin(hit.handle === "body" ? "Move" : hit.handle === "rot" ? "Turn" : hit.handle === "a" || hit.handle === "b" || hit.handle === "aim" ? "Change" : "Resize");
       this.drag = { hit, orig: this.snapshot(hit), moved: false, last: { x: 0, y: 0 }, start };
       return;
     }
@@ -115,6 +150,7 @@ export class Selector {
       case "probe": { const p = sim.probes.find(q => q.id === hit.id)!; return { x: p.x, y: p.y, x2: p.x2, y2: p.y2 }; }
       case "shape": { const s = sim.shapes.find(q => q.id === hit.id)!; return { ...s, ends: shapeEnds(s) }; }
       case "optic": { const o = sim.optics.find(q => q.id === hit.id)!; return { x: o.x, y: o.y }; }
+      case "detector": { const a = sim.logic?.detectors.find(q => q.id === hit.id)?.areas[0]; return a ? { ...a } : null; }
       default: return null;
     }
   }
@@ -125,7 +161,7 @@ export class Selector {
     switch (hit.kind) {
       case "source": case "switch": case "transistor": {
         const o = orig as { s: SourceSpec; x: number; y: number; x2: number; y2: number; baked?: SourceSpec["baked"] }, s = o.s;
-        if (hit.handle === "aim") s.angleDeg = Math.round((Math.atan2(cell.y - s.y - 0.5, cell.x - s.x - 0.5) * 180) / Math.PI);
+        if (hit.handle === "aim") s.angleDeg = snapTurn(Math.atan2(cell.y - s.y - 0.5, cell.x - s.x - 0.5) * DEG);
         else if (hit.handle === "a") { s.x = clampX(o.x + dx); s.y = clampY(o.y + dy); }
         else if (hit.handle === "b") { s.x2 = clampX(o.x2 + dx); s.y2 = clampY(o.y2 + dy); }
         else {
@@ -155,9 +191,13 @@ export class Selector {
       case "shape": {
         const o = orig as ShapeSpec & { ends: [Pt, Pt] }, s = sim.shapes.find(q => q.id === hit.id);
         if (!s) return;
-        const before = shapeBounds(s);
+        const before = shapeBounds(s), f = frame(s.x, s.y, s.angleDeg).local(cell);
         if (hit.handle === "a") setShapeEnds(s, { x: o.ends[0].x + dx, y: o.ends[0].y + dy }, o.ends[1]);
         else if (hit.handle === "b") setShapeEnds(s, o.ends[0], { x: o.ends[1].x + dx, y: o.ends[1].y + dy });
+        else if (hit.handle === "rot") s.angleDeg = snapTurn(Math.atan2(cell.y - s.y, cell.x - s.x) * DEG + 90);
+        // an outline box keeps room inside its walls
+        else if (hit.handle === "len") s.length = Math.max(s.kind === "box" && !s.filled ? s.thickness + 2 : 2, Math.round(2 * Math.abs(f.u)));
+        else if (hit.handle === "wid") s.width = Math.max(s.kind === "box" && !s.filled ? s.thickness + 2 : 2, Math.round(2 * Math.abs(f.v)));
         else { s.x = clampX(o.x + dx); s.y = clampY(o.y + dy); }
         sim.updateShape(s, before);
         return;
@@ -166,13 +206,20 @@ export class Selector {
         const o = orig as { x: number; y: number }, e = sim.optics.find(q => q.id === hit.id);
         if (!e) return;
         const before = opticBounds(e);
-        e.x = clampX(o.x + dx); e.y = clampY(o.y + dy);
+        if (hit.handle === "rot") e.angleDeg = snapTurn(Math.atan2(cell.y - e.y, cell.x - e.x) * DEG + 90);
+        else if (hit.handle === "size") e.size = Math.max(8, Math.round(2 * Math.abs(frame(e.x, e.y, e.angleDeg).local(cell).v)));
+        else { e.x = clampX(o.x + dx); e.y = clampY(o.y + dy); }
         sim.updateOptic(e, before);
         return;
       }
       case "detector": {
         const d = sim.logic?.detectors.find(q => q.id === hit.id), last = this.drag?.last ?? { x: 0, y: 0 };
-        if (d) sim.logic!.moveDetector(d, dx - last.x, dy - last.y);
+        if (!d) return;
+        if (hit.handle === "size") {
+          const a = d.areas[0], o = orig as { x: number; y: number; w: number; h: number };
+          a.w = Math.max(1, Math.round(o.w + dx)); a.h = Math.max(1, Math.round(o.h + dy));
+          sim.logic!.areasChanged();
+        } else sim.logic!.moveDetector(d, dx - last.x, dy - last.y);
         return;
       }
     }
@@ -237,6 +284,38 @@ export class Selector {
     sim.undo.commit();
     sim.notify();
     return done;
+  }
+
+  /** Can the selected thing be turned (a shape, an optical element, a laser)? */
+  canTurn(sel: Selection | null = this.sim.selection): boolean {
+    const sim = this.sim;
+    if (!sel) return false;
+    if (sel.kind === "shape" || sel.kind === "optic") return true;
+    return sel.kind === "source" && sim.sources.find(q => q.id === sel.id)?.kind === "laser";
+  }
+
+  /** Turns the selected shape, optical element or laser by `deg` degrees (clockwise on the picture). */
+  turn(deg: number): boolean {
+    const sim = this.sim, sel = sim.selection;
+    if (!sel || !this.canTurn(sel)) return false;
+    const norm = (a: number) => ((Math.round(a) % 360) + 540) % 360 - 180;
+    sim.undo.touch("Turn");
+    if (sel.kind === "shape") {
+      const s = sim.shapes.find(q => q.id === sel.id)!, before = shapeBounds(s);
+      s.angleDeg = norm(s.angleDeg + deg);
+      sim.updateShape(s, before);
+    } else if (sel.kind === "optic") {
+      const e = sim.optics.find(q => q.id === sel.id)!, before = opticBounds(e);
+      e.angleDeg = norm(e.angleDeg + deg);
+      sim.updateOptic(e, before);
+    } else {
+      const s = sim.sources.find(q => q.id === sel.id)!;
+      s.angleDeg = norm(s.angleDeg + deg);
+      sim.refreshSources();
+    }
+    if (sim.owner === "experiment") sim.layoutChanged = true;
+    sim.notify();
+    return true;
   }
 
   /** Moves the selected thing by whole cells (arrow keys). */

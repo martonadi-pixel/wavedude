@@ -4,7 +4,10 @@
 // GPL-3.0-or-later.
 
 import type { Sim } from "./sim";
-import { emptyOverlay, type Overlay } from "../view/viewport";
+import type { Selection } from "./selection";
+import { ROUND_HANDLES } from "./selection";
+import { isPaintTool } from "./tools";
+import { emptyOverlay, type Overlay, type Pt } from "../view/viewport";
 import type { SourceSpec } from "../core/sources";
 import { motionPosition } from "../core/sources";
 import { opticBounds } from "../core/optics";
@@ -12,6 +15,8 @@ import { shapeOutline, shapeBounds } from "../core/shapes";
 import { logicOverlay } from "../circuits/editor";
 
 const SELECTED = "#ffffff";
+/** The halo of what the pointer is over (a click would pick it up). */
+const HOVER = "#ffffff70";
 
 export function buildOverlay(sim: Sim): Overlay {
   const o = emptyOverlay(), sel = sim.selection, tools = sim.tools;
@@ -46,42 +51,91 @@ export function buildOverlay(sim: Sim): Overlay {
   o.arrows.push(...sim.annotations.arrows);
   o.boxes.push(...sim.annotations.boxes);
   drafts(sim, o);
+  hover(sim, o);
+  brush(sim, o);
   selection(sim, o);
   logicOverlay(sim, o);
   return o;
 }
 
-/** The selected object: a white outline, its name, and its drag handles. */
+const ring = (x: number, y: number, r: number): Pt[] => Array.from({ length: 32 }, (_, k) => ({ x: x + r * Math.cos((k / 32) * 2 * Math.PI), y: y + r * Math.sin((k / 32) * 2 * Math.PI) }));
+const rect = (x0: number, y0: number, x1: number, y1: number): Pt[] => [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+
+/** The outline of an object (closed polygons in cells), and where its name goes. */
+function outlineOf(sim: Sim, sel: Selection): { polys: Pt[][]; name?: { x: number; y: number; text: string } } {
+  const r = Math.max(6, 10 * sim.view.scale);
+  switch (sel.kind) {
+    case "shape": {
+      const s = sim.shapes.find(q => q.id === sel.id);
+      return s ? { polys: [shapeOutline(s)], name: { x: s.x - 30, y: shapeBounds(s).y0 - 6, text: s.name } } : { polys: [] };
+    }
+    case "optic": {
+      const e = sim.optics.find(q => q.id === sel.id);
+      if (!e) return { polys: [] };
+      const b = opticBounds(e);
+      return { polys: [rect(b.x0, b.y0, b.x1, b.y1)], name: { x: e.x - 30, y: b.y0 - 6, text: e.name } };
+    }
+    case "probe": {
+      const p = sim.probes.find(q => q.id === sel.id);
+      if (!p) return { polys: [] };
+      if (p.kind === "point") return { polys: [ring(p.x + 0.5, p.y + 0.5, r * 1.3)] };
+      // a band around the line
+      const a = Math.atan2(p.y2 - p.y, p.x2 - p.x), nx = -Math.sin(a) * r * 0.7, ny = Math.cos(a) * r * 0.7;
+      return { polys: [[{ x: p.x + 0.5 + nx, y: p.y + 0.5 + ny }, { x: p.x2 + 0.5 + nx, y: p.y2 + 0.5 + ny }, { x: p.x2 + 0.5 - nx, y: p.y2 + 0.5 - ny }, { x: p.x + 0.5 - nx, y: p.y + 0.5 - ny }]] };
+    }
+    case "source": {
+      const s = sim.sources.find(q => q.id === sel.id);
+      if (!s) return { polys: [] };
+      if (s.kind === "line") {
+        const a = Math.atan2(s.y2 - s.y, s.x2 - s.x), nx = -Math.sin(a) * r * 0.8, ny = Math.cos(a) * r * 0.8;
+        return { polys: [[{ x: s.x + 0.5 + nx, y: s.y + 0.5 + ny }, { x: s.x2 + 0.5 + nx, y: s.y2 + 0.5 + ny }, { x: s.x2 + 0.5 - nx, y: s.y2 + 0.5 - ny }, { x: s.x + 0.5 - nx, y: s.y + 0.5 - ny }]] };
+      }
+      const p = sim.sourcePos(s);
+      return { polys: [ring(p.x + 0.5, p.y + 0.5, r * 1.6)] };
+    }
+    case "detector": {
+      const d = sim.logic?.detectors.find(q => q.id === sel.id);
+      return { polys: (d?.areas ?? []).map(a => rect(a.x - 2, a.y - 2, a.x + a.w + 2, a.y + a.h + 2)) };
+    }
+    default: {
+      const c = sim.logic, part = c && (sel.kind === "switch" ? c.switches : c.transistors).find(q => q.id === sel.id);
+      return { polys: (part?.sources ?? []).map(s => ring((s.x + s.x2) / 2 + 0.5, (s.y + s.y2) / 2 + 0.5, r * 1.6)) };
+    }
+  }
+}
+
+/** The selected object: a white outline, its name, and its drag handles (a line to the knob that turns it). */
 function selection(sim: Sim, o: Overlay): void {
   const sel = sim.selection;
   if (!sel) return;
-  o.handles.push(...sim.selector.handles().map(([, p]) => p));
-  const ring = (x: number, y: number, r: number) => Array.from({ length: 32 }, (_, k) => ({ x: x + r * Math.cos((k / 32) * 2 * Math.PI), y: y + r * Math.sin((k / 32) * 2 * Math.PI) }));
-  const r = Math.max(6, 10 * sim.view.scale);
-  if (sel.kind === "shape") {
-    const s = sim.shapes.find(q => q.id === sel.id);
-    if (!s) return;
-    o.paths.push({ pts: shapeOutline(s), closed: true, color: SELECTED });
-    o.labels.push({ x: s.x - 30, y: shapeBounds(s).y0 - 6, text: `◆ ${s.name}`, color: SELECTED });
-  } else if (sel.kind === "optic") {
-    const e = sim.optics.find(q => q.id === sel.id);
-    if (!e) return;
-    const b = opticBounds(e);
-    o.paths.push({ pts: [{ x: b.x0, y: b.y0 }, { x: b.x1, y: b.y0 }, { x: b.x1, y: b.y1 }, { x: b.x0, y: b.y1 }], closed: true, color: SELECTED });
-    o.labels.push({ x: e.x - 30, y: b.y0 - 6, text: `◆ ${e.name}`, color: "#7df9ff" });
-  } else if (sel.kind === "probe") {
-    const p = sim.probes.find(q => q.id === sel.id);
-    if (p?.kind === "point") o.paths.push({ pts: ring(p.x + 0.5, p.y + 0.5, r * 1.3), closed: true, color: SELECTED });
-  } else if (sel.kind === "source") {
-    const s = sim.sources.find(q => q.id === sel.id);
-    if (s && s.kind !== "line") { const p = sim.sourcePos(s); o.paths.push({ pts: ring(p.x + 0.5, p.y + 0.5, r * 1.6), closed: true, color: SELECTED }); }
-  } else if (sel.kind === "detector") {
-    const d = sim.logic?.detectors.find(q => q.id === sel.id);
-    for (const a of d?.areas ?? []) o.paths.push({ pts: [{ x: a.x - 2, y: a.y - 2 }, { x: a.x + a.w + 2, y: a.y - 2 }, { x: a.x + a.w + 2, y: a.y + a.h + 2 }, { x: a.x - 2, y: a.y + a.h + 2 }], closed: true, color: SELECTED });
-  } else {
-    const c = sim.logic, part = c && (sel.kind === "switch" ? c.switches : c.transistors).find(q => q.id === sel.id);
-    for (const s of part?.sources ?? []) o.paths.push({ pts: ring((s.x + s.x2) / 2 + 0.5, (s.y + s.y2) / 2 + 0.5, r * 1.6), closed: true, color: SELECTED });
+  const { polys, name } = outlineOf(sim, sel);
+  for (const pts of polys) o.paths.push({ pts, closed: true, color: SELECTED });
+  if (name) o.labels.push({ x: name.x, y: name.y, text: `◆ ${name.text}`, color: sel.kind === "optic" ? "#7df9ff" : SELECTED });
+  const hs = sim.selector.handles(sel);
+  const centre = sel.kind === "shape" ? sim.shapes.find(q => q.id === sel.id) : sel.kind === "optic" ? sim.optics.find(q => q.id === sel.id) : undefined;
+  for (const [kind, p] of hs) {
+    if (kind === "rot" && centre) o.paths.push({ pts: [{ x: centre.x, y: centre.y }, p], color: "#ffffffaa", solid: true });
+    o.handles.push({ ...p, round: ROUND_HANDLES.has(kind) });
   }
+}
+
+/** A faint halo around what a click would pick up (not while dragging, not on the selected object). */
+function hover(sim: Sim, o: Overlay): void {
+  const cell = sim.view.hoverCell;
+  if (!cell || sim.view.pressed || sim.view.tool === "ruler" || sim.view.tool === "protractor") return;
+  const hit = sim.selector.hit(cell);
+  if (!hit || hit.handle !== "body") return;
+  const sel = sim.selection;
+  if (sel && sel.kind === hit.kind && sel.id === hit.id) return;
+  for (const pts of outlineOf(sim, hit).polys) o.paths.push({ pts, closed: true, color: HOVER });
+}
+
+/** Where a paint tool would paint, and how thick: a circle the size of the brush under the pointer. */
+function brush(sim: Sim, o: Overlay): void {
+  const cell = sim.view.hoverCell, tool = sim.view.tool;
+  if (!cell || !isPaintTool(tool) || sim.tools.shapeDraft || (sim.paintShape === "filledBox" && tool !== "erase")) return;
+  const color = tool === "erase" ? "#f87171" : tool === "glass" ? "#7dd3fc" : tool === "absorber" ? "#c4b5fd" : "#e2e8f0";
+  o.paths.push({ pts: ring(Math.floor(cell.x) + 0.5, Math.floor(cell.y) + 0.5, Math.max(0.5, sim.brush)), closed: true, color, solid: true });
 }
 
 /** A line or box being dragged out with a paint tool, as it will be drawn. */
