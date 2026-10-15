@@ -1,6 +1,7 @@
 // Wave Dude 2D web - the sandbox: free experimenting with every tool, projects in the Windows format, video.
 // GPL-3.0-or-later.
 
+import { defaultSettings } from "../engine/engine";
 import { Scene, BARRIER, glass } from "../engine/scene";
 import { type SourceSpec, newSource, elementsOf, newMotion } from "../engine/sources";
 import { levelColor } from "../engine/physics";
@@ -86,6 +87,7 @@ export function openSandbox(shell: Shell): void {
   if (sim.owner !== "sandbox") {
     // coming from an experiment: start a fresh project with a demo scene
     sim.owner = "sandbox";
+    Object.assign(sim.engine.settings, defaultSettings());
     sim.project = newMeta();
     sim.brightness = { field: 2, intensity: 2 };
     sim.brightnessPct = DEFAULT_BRIGHTNESS_PCT;

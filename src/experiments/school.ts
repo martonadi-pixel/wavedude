@@ -217,7 +217,7 @@ export const doubleSlit: Experiment = {
     sim.annotations.labels.push({ x: SCREEN_X + 8, y: 60, text: "screen", color: "#ffd84a" });
     sim.viewMode = "field";
     // only a little gets through the slits: show the weak waves behind the wall (the side in front saturates)
-    sim.brightness.field = 4.9;
+    sim.brightness.field = 4;
     sim.brightness.intensity = 7;
   },
   steps: [

@@ -33,3 +33,14 @@ describe("physics", () => {
     expect(wavelength(3, 1, "3x3")).toBeNaN();
   });
 });
+
+import { edgeDamping } from "./scene";
+
+describe("damping edge", () => {
+  it("starts with no damping and no kink, and damps most at the border", () => {
+    expect(edgeDamping(64, 64)).toBeCloseTo(1);
+    expect(1 - edgeDamping(63, 64)).toBeLessThan(1e-4);
+    expect(edgeDamping(0, 64)).toBeCloseTo(1 - 12 / 64);
+    expect(edgeDamping(0, 8)).toBeCloseTo(0.5);
+  });
+});

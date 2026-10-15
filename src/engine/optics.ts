@@ -36,7 +36,7 @@ export const OPTIC_KINDS: { kind: OpticKind; label: string; icon: string; help: 
   { kind: "meniscus", label: "Meniscus", icon: "( (", help: "Both faces curve the same way, like spectacle lenses (this one converges)." },
   { kind: "ball", label: "Ball lens", icon: "○", help: "A glass disc (a sphere in 3D): a very strong lens, used to couple light into fibres." },
   { kind: "prism", label: "Prism", icon: "△", help: "A wedge of glass: bends a beam by a fixed angle." },
-  { kind: "mirror", label: "Flat mirror", icon: "▌", help: "Reflects with angle in = angle out (made of very dense glass, n = 10, which reflects most of the wave)." },
+  { kind: "mirror", label: "Flat mirror", icon: "▌", help: "Reflects every wave completely, with angle in = angle out." },
   { kind: "parabolic", label: "Parabolic mirror", icon: "⊃", help: "Focuses a parallel beam to one point, like a satellite dish or telescope mirror." },
   { kind: "splitter", label: "Beam splitter", icon: "⟋", help: "A thin glass plate at 45°: lets part of the beam through and reflects part of it." },
   { kind: "grin", label: "GRIN lens", icon: "▥", help: "A flat slab of glass whose refractive index is highest in the middle and falls towards the rim: it focuses light without curved faces." },
@@ -97,12 +97,15 @@ function materialAt(o: OpticSpec, u: number, v: number): Material | null {
       const w = ((v + h) / (2 * h)) * halfBase;
       return Math.abs(u) <= w ? glassN : null;
     }
-    case "mirror": case "splitter":
+    // mirrors are walls: the engine holds the field at zero there, so they reflect everything at every frequency
+    case "mirror":
+      return Math.abs(v) <= h && Math.abs(u) <= t / 2 ? { n: 1, absorb: 1 } : null;
+    case "splitter":
       return Math.abs(v) <= h && Math.abs(u) <= t / 2 ? { n: o.n, absorb: 0 } : null;
     case "parabolic": {
       if (Math.abs(v) > h) return null;
       const us = -(v * v) / (4 * Math.max(1, o.radius));       // opens towards -u, focus at u = -f
-      return u >= us && u <= us + t ? { n: o.n, absorb: 0 } : null;
+      return u >= us && u <= us + t ? { n: 1, absorb: 1 } : null;
     }
     case "grin": {
       if (Math.abs(v) > h || Math.abs(u) > t / 2) return null;

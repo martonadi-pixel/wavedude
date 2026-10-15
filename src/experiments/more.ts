@@ -121,7 +121,7 @@ export const singleSlit: Experiment = {
     sim.annotations.labels.push({ x: SSCREEN + 8, y: 24, text: "screen", color: "#ffd84a" });
     sim.viewMode = "intensity";
     sim.brightness.field = 4.6;
-    sim.brightness.intensity = 7;
+    sim.brightness.intensity = 5.5;
   },
   steps: [
     {
@@ -262,16 +262,28 @@ function reflection(sim: Sim, p: Values): { inc: number; ref: number } | null {
   const h = sim.history[0];
   if (!h || !h.length) return null;
   const v = groupVelocity(omegaOfLevel(p.level), 1);
-  const t0 = 3 * period(p.level);
-  // the direct pulse arrives after (source - probe) / v, the echo from the right edge after (2 (edge - source) + (source - probe)) / v
-  const split = sim.historyStart + t0 + (A_SRC - A_PROBE) / v + 2 * 6 * period(p.level) + 60;
-  const end = sim.historyStart + t0 + (2 * (AW - A_SRC) + (A_SRC - A_PROBE)) / v + 6 * period(p.level) + 400;
+  const T = period(p.level), t0 = 3 * T;
+  // the direct pulse arrives after (source - probe) / v. The echo comes back from somewhere in the layer: between a
+  // bounce at its inner side and one at the border. Only that time is searched: the two ends of the source line (in
+  // the top and bottom edges) send a faint wave of their own that reaches the probe earlier and would pass for an echo.
+  const direct = t0 + (A_SRC - A_PROBE) / v;
+  const echoFrom = t0 + (2 * (AW - p.edge - A_SRC) + (A_SRC - A_PROBE)) / v - 3 * T;
+  const echoTo = t0 + (2 * (AW - A_SRC) + (A_SRC - A_PROBE)) / v + 9 * T;
+  const split = sim.historyStart + direct + 6 * T, from = sim.historyStart + echoFrom, end = sim.historyStart + echoTo;
+  // the amplitude at the pulse's own frequency over two periods (a lock-in): the pulse leaves a slow wake of about 1%
+  // behind it, which a plain maximum of |u| would count as an echo
+  const w = omegaOfLevel(p.level), N = Math.round(2 * T);
+  const amp = (c: number) => {
+    let re = 0, im = 0;
+    for (let j = Math.max(0, c - (N >> 1)); j < Math.min(h.length, c + (N >> 1)); j++) { re += h[j] * Math.cos(w * j); im -= h[j] * Math.sin(w * j); }
+    return (2 / N) * Math.hypot(re, im);
+  };
   let inc = 0, ref = 0;
-  h.forEach((u, i) => {
+  for (let i = 0; i < h.length; i += 2) {
     const t = sim.historyStart + i;
-    if (t < split) inc = Math.max(inc, Math.abs(u));
-    else if (t < end) ref = Math.max(ref, Math.abs(u));
-  });
+    if (t < split) inc = Math.max(inc, amp(i));
+    else if (t >= from && t < end) ref = Math.max(ref, amp(i));
+  }
   if (sim.time < end) return { inc, ref: NaN };
   return { inc, ref };
 }
@@ -285,7 +297,7 @@ export const edge: Experiment = {
   goals: ["Measure a reflection coefficient with a probe", "Graded absorbers reflect less when they are thicker or the wave shorter", "Why perfectly matched layers exist"],
   graph: "points",
   params: [
-    { id: "edge", label: "Edge thickness", min: 4, max: 160, step: 2, value: 64, unit: " cells", help: "The ring i cells from the border gets d = √(i / thickness)." },
+    { id: "edge", label: "Edge thickness", min: 4, max: 160, step: 2, value: 64, unit: " cells", help: "The ring i cells from the border gets d = 1 − g((T − i)/T)², g = min(0.5, 12/T): a gentle damping that starts without a kink." },
     { id: "level", label: "Source level (frequency)", min: 15, max: 200, step: 1, value: 60, help: "λ is shown in the readout." },
   ],
   setup(sim, p) {
@@ -306,7 +318,7 @@ export const edge: Experiment = {
     {
       title: "Why boundaries matter",
       html: `<p>The simulated region is finite, but the waves in it should behave as if space went on for ever. Anything reaching the border must disappear without coming back: an <b>absorbing boundary</b>.</p>
-             <p>Wave Dude uses a graded damping layer: the velocity term is multiplied by d = √(i / thickness), from 0 at the border to 1 inside. A sudden change in d would act like a wall and reflect; a gradual one reflects less.</p>
+             <p>Wave Dude uses a graded damping layer: the velocity term is multiplied by d = 1 − g((T − i)/T)² (T = thickness, g = min(0.5, 12/T)): 1 at the inner side, a little less towards the border. A sudden change in d would act like a wall and reflect; a gradual one without a kink reflects far less. (The Windows app uses d = √(i/T), which has a kink where the edge begins and reflects 3–8 times more.)</p>
              <p>A single pulse leaves the source line (at x = ${A_SRC}) to the right, enters the edge and partly comes back. Probe P1 (x = ${A_PROBE}) records the direct pulse and then the echo.</p>`,
     },
     {
@@ -318,7 +330,8 @@ export const edge: Experiment = {
         const l = lam(p.level);
         if (!r || !Number.isFinite(r.ref)) return `λ = ${f1(l)} cells · edge = ${f2(p.edge / l)} λ thick · <i>waiting for the echo…</i>`;
         const R = r.ref / r.inc;
-        return `λ = ${f1(l)} cells · edge = ${f2(p.edge / l)} λ thick<br>R = <b>${(R * 100).toFixed(2)}%</b> (${(20 * Math.log10(R)).toFixed(1)} dB)`;
+        return `λ = ${f1(l)} cells · edge = ${f2(p.edge / l)} λ thick<br>R = <b>${(R * 100).toFixed(2)}%</b> (${(20 * Math.log10(R)).toFixed(1)} dB)` +
+          `<div class="muted small">Both amplitudes are taken at the pulse's own frequency; below about 0.4% the faint wake the pulse leaves behind sets the limit.</div>`;
       },
     },
     {

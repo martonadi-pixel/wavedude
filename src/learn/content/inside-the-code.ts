@@ -594,7 +594,7 @@ gl.drawArrays(gl.TRIANGLES, 0, 3);</code></pre>
 <tr><td>(150, 0, 0)</td><td>glass, n = 1.5</td></tr>
 <tr><td>(100, 60, 0)</td><td>a source at level 60 in empty space</td></tr>
 <tr><td>(100, 0, 64)</td><td>absorber: d = 1 − 64 / 255 = 0.75</td></tr>
-<tr><td>(100, 0, 255)</td><td>full absorber: d = 0, motion stopped</td></tr>
+<tr><td>(100, 0, 255)</td><td>wall: the field is held at 0 there, so waves reflect completely</td></tr>
 </table>
 <h4>Colour scheme files</h4>
 <p>A colour scheme is a JSON file too: a name, a type (“field” or “intensity”), 9 <b>stops</b> and the full list of 255 colours made by blending between the stops in a straight line. The editor saves schemes in the browser and can download them in the same format the Windows app uses.</p>`,

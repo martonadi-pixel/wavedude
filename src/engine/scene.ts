@@ -16,6 +16,17 @@ export const VACUUM: Material = { n: 1, absorb: 0 };
 export const BARRIER: Material = { n: 1, absorb: 1 };
 export const glass = (n = 1.5): Material => ({ n });
 
+/**
+ * Damping factor of the ring i cells from the border, in an edge `thickness` cells thick: 1 - g ((T - i) / T)^2 with
+ * g = min(0.5, 12 / T). It starts at no damping with zero slope and grows smoothly, which reflects far less than the
+ * Windows app's sqrt(i / T) (measured, 64 cells, plane wave: 2% -> well below 0.1% at a wavelength of 15 cells); g
+ * is chosen so that the layer still swallows the wave on its way in and out.
+ */
+export function edgeDamping(i: number, thickness: number): number {
+  const g = Math.min(0.5, 12 / thickness);
+  return 1 - g * ((thickness - i) / thickness) ** 2;
+}
+
 export class Scene {
   readonly c2: Float32Array;
   /** Refractive index per cell (kept for display and for the experiments). */
@@ -76,14 +87,14 @@ export class Scene {
     if (m.absorb !== undefined) this.dBase[i] = 1 - Math.min(1, Math.max(0, m.absorb));
   }
 
-  /** The damping edge of SceneData.ApplyBorder: the ring i cells from the edge gets the factor sqrt(i / thickness). */
+  /** The damping edge: the ring i cells from the border gets the factor edgeDamping(i, thickness). */
   applyEdge(): void {
     const { width: w, height: h, d } = this;
     d.set(this.dBase);
     if (!this.edgeOn) return;
     const t = Math.min(this.edge, Math.floor(Math.min(w, h) / 2));
     for (let i = 0; i < t; i++) {
-      const v = Math.sqrt(i / t);
+      const v = edgeDamping(i, t);
       for (let x = i; x < w - i; x++) {
         d[i * w + x] = Math.min(d[i * w + x], v);
         d[(h - 1 - i) * w + x] = Math.min(d[(h - 1 - i) * w + x], v);
@@ -103,7 +114,7 @@ export class Scene {
       for (let x = x0; x <= x1; x++) {
         const i = y * w + x;
         const ring = Math.min(x, y, w - 1 - x, h - 1 - y);
-        this.d[i] = ring < t ? Math.min(this.dBase[i], Math.sqrt(ring / t)) : this.dBase[i];
+        this.d[i] = ring < t ? Math.min(this.dBase[i], edgeDamping(ring, t)) : this.dBase[i];
       }
   }
 

@@ -193,7 +193,7 @@ export const dispersion: Experiment = {
       html: `<ul><li>The phase velocity is about 1% low at 10 cells per wavelength, 3% at 6 and 7% at 4 cells per wavelength: keep ≥ 10 cells per wavelength when speeds matter.</li>
              <li>The error is anisotropic too: the 3×3 kernel's sin²(k/2) term differs along the diagonals. Try a point source at a high level in the Sandbox and look at the ring.</li>
              <li>The intensity view uses a two-stage exponential filter of u², with time constant TimeDecayFactor·100/level steps, so it lags behind fast changes.</li>
-             <li>The damping edge is a graded absorber (d = √(i/thickness)), not a perfect one: put a probe near it in the Sandbox and measure how much comes back at different frequencies.</li></ul>`,
+             <li>The damping edge is a graded absorber (d = 1 − g((T − i)/T)²), not a perfect one: put a probe near it in the Sandbox and measure how much comes back at different frequencies.</li></ul>`,
     },
   ],
 };

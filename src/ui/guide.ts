@@ -1,6 +1,7 @@
 // Wave Dude 2D web - the experiment list and the step-by-step guide.
 // GPL-3.0-or-later.
 
+import { defaultSettings } from "../engine/engine";
 import { EXPERIMENTS } from "../experiments";
 import { LEVELS, type Level, type Experiment, type Values, type Measured } from "../experiments/types";
 import { pulseMarkers } from "../experiments/advanced";
@@ -65,6 +66,7 @@ export function renderExperimentList(shell: Shell): void {
   );
   // a calm demo behind the list
   shell.sim.owner = "experiment";
+  Object.assign(shell.sim.engine.settings, defaultSettings());
   shell.sim.grabbable = false;
   shell.sim.keepMine = false;
   const first = EXPERIMENTS[0];
@@ -95,6 +97,8 @@ export function openExperiment(shell: Shell, id: string): void {
   let rebuildTimer = 0;
 
   sim.owner = "experiment";
+  // experiments are written for the default stencil, frequency scale and intensity filter, whatever the Sandbox set
+  Object.assign(sim.engine.settings, defaultSettings());
   sim.grabbable = !!exp.movable;
   // probes the reader places stay through slider changes, until they leave the experiment
   sim.keepMine = false;

@@ -255,11 +255,11 @@ export const category: LearnCategory = {
 <p>Without damping (d = 1) this is g + 1/g = 2 + c²Λ. The two roots have product 1; they lie on the unit circle (a stable, purely oscillating mode) when |2 + c²Λ| ≤ 2, i.e.</p>
 <p class="formula">−4 ≤ c² Λ(k) ≤ 0 &nbsp; for all k</p>
 <p>Λ ≤ 0 everywhere and Λ<sub>min</sub> = Λ(π, π) = −1.472, so the 3×3 scheme is stable for <b>c² ≤ 4 / 1.472 ≈ 2.72</b>. In terms of the Courant number ν = vΔt/Δx with v = √(0.316 c²), the limit is ν ≤ 0.927. The app's material range n ∈ [0.9, 10] gives c² ≤ 1.235, i.e. ν ≤ 0.62. (The plain 5-point Laplacian with leapfrog in 2D allows ν ≤ 1/√2 ≈ 0.71.)</p>
-<p>With damping, the product of the roots is d, so for oscillating modes |g| = √d: the amplitude falls by √d per step, exactly. With d = 0 (a fully absorbing cell) the update becomes u<sup>m+1</sup> = u<sup>m</sup> + c² K ∗ u<sup>m</sup>, which is an explicit <i>diffusion</i> step; it is stable for c² ≤ 2 / 1.472 ≈ 1.36, again satisfied for n ≥ 0.9.</p>
+<p>With damping, the product of the roots is d, so for oscillating modes |g| = √d: the amplitude falls by √d per step, exactly. With d = 0 (a fully absorbing cell) the update becomes u<sup>m+1</sup> = u<sup>m</sup> + c² K ∗ u<sup>m</sup>, which is an explicit <i>diffusion</i> step; it is stable for c² ≤ 2 / 1.472 ≈ 1.36, again satisfied for n ≥ 0.9. (No cell uses d = 0 any more: walls hold u = 0 instead, and the most damped cells, at the border of the edge, have d ≥ 0.5.)</p>
 <h4>Sub-steps for the 4th-order cross</h4>
 <p>The scaled cross has symbol 0.316 Σ<sub>x,y</sub> [(1/6) cos 2k − (8/3) cos k + 5/2], whose largest magnitude is 0.316 × 2 × 16/3 = 0.316 × 32/3 ≈ <b>3.37</b> at (π, π). That is just inside the theoretical limit c² · 3.37 ≤ 4 for c² = 1, but outside it for the fastest material allowed (n = 0.9, c² = 1.23), and with no margin to spare. The engine therefore splits each step into N sub-steps with c²/N² and damping d<sup>1/N</sup> (so the per-step amplitude loss is unchanged):</p>
 <p class="formula">N = ⌈ √(c²<sub>max</sub> · 0.316 · (32/3) / 2) ⌉</p>
-<p>This keeps (c²/N²) · 3.37 ≤ 2, half the theoretical limit of 4, a deliberate safety margin. For n = 1 (c² = 1) N = 2; if the scene's fastest material has n = 1.5, N = 1. (The Windows app uses the unscaled cross and N = ⌈√(c²<sub>max</sub> · (32/3) / 2)⌉, so N = 3 for n = 1.) Sources are applied on the first sub-step only and the intensity filter on the last, so one “step” still means the same thing for sources, probes and the display.</p>`,
+<p>This keeps (c²/N²) · 3.37 ≤ 2. With damping the update is stable for c²|Λ| ≤ 2(1 + d): 4 without damping and at least 3 in the most damped cells of the edge (d ≥ 0.5), so 2 leaves a margin everywhere. For n = 1 (c² = 1) N = 2; if the scene's fastest material has n = 1.5, N = 1. (The Windows app uses the unscaled cross and N = ⌈√(c²<sub>max</sub> · (32/3) / 2)⌉, so N = 3 for n = 1.) Sources are applied on the first sub-step only, with their pull divided by N (otherwise a source would radiate 1.4–1.8 times more with N = 2), and the intensity filter on the last, so one “step” still means the same thing for sources, probes and the display.</p>`,
         },
         {
           level: "research",
@@ -406,11 +406,12 @@ export const category: LearnCategory = {
           html: `
 <p>Beyond the last cell the simulator treats the field as zero. On its own, that would be a fixed edge, like the clamped end of a skipping rope: a wave would reflect completely, upside down.</p>
 <p>To stop this, the outer ring of the scene gets a <b>damping edge</b>, by default 64 cells thick. The damping factor d (1 = no damping, 0 = motion stopped) for the ring i cells from the border is</p>
-<p class="formula">d = √(i / thickness)</p>
-<figure class="diagram"><svg viewBox="0 0 360 185" role="img" aria-label="Damping factor rising as a square root from the border into the scene">
+<p class="formula">d = 1 − g · ((thickness − i) / thickness)²,&nbsp;&nbsp; g = min(0.5, 12 / thickness)</p>
+<p>So the damping is gentle (for a 64-cell edge at most 19% of the motion per step, right at the border) but long, and it starts from nothing without a kink. A wave hardly notices where the edge begins, and is still swallowed on its way in and back out.</p>
+<figure class="diagram"><svg viewBox="0 0 360 185" role="img" aria-label="Damping factor rising gently from the border into the scene">
 <rect x="40" y="25" width="240" height="120" fill="#c084fc" fill-opacity="0.12"/>
 <line x1="40" y1="140" x2="345" y2="140" stroke="currentColor"/><line x1="40" y1="140" x2="40" y2="20" stroke="currentColor"/>
-<path d="M40,140 L40.2,137.3 L40.6,134.5 L41.4,131.8 L42.4,129 L43.8,126.3 L45.4,123.5 L47.4,120.8 L49.6,118 L52.2,115.3 L55,112.5 L58.2,109.8 L61.6,107 L65.4,104.3 L69.4,101.5 L73.8,98.8 L78.4,96 L83.4,93.3 L88.6,90.5 L94.2,87.8 L100,85 L106.2,82.3 L112.6,79.5 L119.4,76.8 L126.4,74 L133.8,71.3 L141.4,68.5 L149.4,65.8 L157.6,63 L166.2,60.3 L175,57.5 L184.2,54.8 L193.6,52 L203.4,49.3 L213.4,46.5 L223.8,43.8 L234.4,41 L245.4,38.3 L256.6,35.5 L268.2,32.8 L280,30" fill="none" stroke="#34d399" stroke-width="2.5"/>
+<path d="M40.0,50.6 L46.0,49.6 L52.0,48.6 L58.0,47.6 L64.0,46.7 L70.0,45.8 L76.0,44.9 L82.0,44.0 L88.0,43.2 L94.0,42.4 L100.0,41.6 L106.0,40.8 L112.0,40.1 L118.0,39.4 L124.0,38.7 L130.0,38.1 L136.0,37.4 L142.0,36.8 L148.0,36.2 L154.0,35.7 L160.0,35.2 L166.0,34.7 L172.0,34.2 L178.0,33.7 L184.0,33.3 L190.0,32.9 L196.0,32.5 L202.0,32.2 L208.0,31.9 L214.0,31.6 L220.0,31.3 L226.0,31.0 L232.0,30.8 L238.0,30.6 L244.0,30.5 L250.0,30.3 L256.0,30.2 L262.0,30.1 L268.0,30.1 L274.0,30.0 L280.0,30.0" fill="none" stroke="#34d399" stroke-width="2.5"/>
 <line x1="280" y1="30" x2="345" y2="30" stroke="#34d399" stroke-width="2.5"/>
 <line x1="280" y1="25" x2="280" y2="145" stroke="currentColor" stroke-dasharray="3 3" opacity="0.6"/>
 <g font-size="12" fill="currentColor">
@@ -421,16 +422,18 @@ export const category: LearnCategory = {
 <text x="150" y="178" text-anchor="middle">distance from the border (cells) →</text>
 <text x="292" y="50">scene</text>
 <text x="120" y="60" fill="#c084fc">damping edge</text>
-</g></svg><figcaption>The damping factor rises smoothly from 0 at the border to 1 at the inner side of the edge. The square root makes it change slowly where the wave enters.</figcaption></figure>
+</g></svg><figcaption>The damping factor dips gently towards the border (0.81 there for a 64-cell edge) and joins the scene without a kink, so the wave meets no sudden change.</figcaption></figure>
 <h4>How well does it work?</h4>
-<p>The <b>reflection coefficient</b> R is the echo's amplitude divided by the incoming amplitude. Measured with a straight pulse at level 60 (λ ≈ 15 cells):</p>
+<p>The <b>reflection coefficient</b> R is the echo's amplitude divided by the incoming amplitude. Measured with a straight pulse (the absorbing-edge experiment), compared with the square-root edge of the Windows app:</p>
 <table>
-<tr><th>edge thickness</th><th>in wavelengths</th><th>R (amplitude)</th><th>energy reflected</th></tr>
-<tr><td>16 cells</td><td>≈ 1.1 λ</td><td>≈ 6%</td><td>≈ 0.4%</td></tr>
-<tr><td>64 cells</td><td>≈ 4.3 λ</td><td>≈ 2%</td><td>≈ 0.04%</td></tr>
-<tr><td>128 cells</td><td>≈ 8.5 λ</td><td>≈ 1%</td><td>≈ 0.01%</td></tr>
+<tr><th>edge thickness</th><th>wavelength</th><th>R, this edge</th><th>R, square-root edge</th></tr>
+<tr><td>16 cells</td><td>15 cells</td><td>≈ 1.3%</td><td>≈ 6.3%</td></tr>
+<tr><td>32 cells</td><td>15 cells</td><td>≈ 0.3%</td><td>≈ 2.6%</td></tr>
+<tr><td>64 cells</td><td>15 cells</td><td>below 0.4%</td><td>≈ 1.1%</td></tr>
+<tr><td>64 cells</td><td>30 cells</td><td>≈ 0.75%</td><td>≈ 6.2%</td></tr>
+<tr><td>16 cells</td><td>30 cells</td><td>≈ 15%</td><td>≈ 22%</td></tr>
 </table>
-<p>Energy goes with amplitude squared: 6% amplitude is 0.06² = 0.0036, i.e. 0.36% of the energy. What matters is thickness <b>compared with the wavelength</b>: long waves (low levels) see a more sudden edge and reflect more.</p>`,
+<p>Energy goes with amplitude squared: 1.3% amplitude is 0.013² ≈ 0.02% of the energy. What matters is thickness <b>compared with the wavelength</b>: an edge thinner than a wavelength cannot do much, whatever its shape. (Below about 0.4% the measurement itself sets the limit: the test pulse leaves a faint wake of its own.)</p>`,
         },
         {
           level: "university",
@@ -439,14 +442,14 @@ export const category: LearnCategory = {
 <p class="formula">∂²u/∂t² + γ ∂u/∂t = 0.316 c² ∇²u</p>
 <p>and, as the stability analysis showed, an oscillating mode loses amplitude by exactly √d per step. For example d = 0.99 halves the amplitude in about 138 steps; d = 0.9 in about 13.</p>
 <h4>Why a graded profile, and why it still reflects</h4>
-<p>Any change of γ over a distance short compared with λ acts as an impedance step and reflects. A profile that changes slowly on the scale of λ reflects little (a WKB-type argument), but it must also absorb enough on the way in and back out. The engine's profile d = √(i/T) has γ = 1 − √(1 − s) ≈ s/2 just inside the inner boundary (s = distance into the layer / T), so γ starts from zero with a finite slope and grows to γ = 1 (no inertia at all) in the outermost ring; beyond that ring the field is held at zero. The measured R falls roughly as the layer thickness in wavelengths grows, but slowly: from ≈ 6% at 1.1 λ to ≈ 1% at 8.5 λ. Such “sponge” layers have three known weaknesses:</p>
+<p>Any change of γ over a distance short compared with λ acts as an impedance step and reflects. A profile that changes slowly on the scale of λ reflects little (a WKB-type argument), but it must also absorb enough on the way in and back out. The engine's profile has γ = g s² (s = distance into the layer / T, g = min(0.5, 12/T)): it starts from zero with zero slope, so the inner boundary has no kink to reflect from, and the total absorption ∫γ dt along a path in and out stays large enough to swallow the wave. The Windows app's √(i/T) profile has γ ≈ s/2 at the inner side, a kink, and reaches γ = 1 (no inertia at all) in the outermost ring, a sudden change: it reflects 3–8 times more (table above). Such “sponge” layers have three known weaknesses:</p>
 <ul>
 <li>reflection depends on the <b>frequency</b> (thickness/λ);</li>
 <li>it depends on the <b>angle</b>: near grazing incidence the wave travels a long way parallel to the layer and sees a more abrupt change per wavelength along its path;</li>
 <li><b>corners</b> and evanescent fields are handled poorly.</li>
 </ul>
 <h4>Walls inside the scene</h4>
-<p>A wall painted with full absorption (d = 0) turns the update into u<sup>m+1</sup> = u<sup>m</sup> + c² K ∗ u<sup>m</sup>: no inertia, just diffusion. The abrupt change from d = 1 to d = 0 is a strong impedance mismatch, so walls reflect most of the incoming wave, which is what a slit or a mirror in the app needs. A graded absorber painted by hand behaves like the edge.</p>`,
+<p>A wall (a cell painted with full absorption) holds the field at zero: u = 0 there at every step, a Dirichlet condition. A wave meeting it reflects completely, upside down, like a rope tied to a post, whatever the wall's thickness or the wave's frequency, which is what a slit or a mirror needs. (The Windows app instead sets d = 0 in such cells, which removes their inertia but not their coupling: a 4-cell wall then lets about 10% of the amplitude through and swallows a third of the rest.) The Sandbox absorber grows from nothing at its border to 0.25 inside, like a short version of the edge, so it soaks waves up without reflecting them.</p>`,
         },
         {
           level: "research",
@@ -509,7 +512,7 @@ export const category: LearnCategory = {
 <h4>Materials</h4>
 <ul>
 <li><b>Refractive index n</b> (0.9 to 10): the pull from the neighbours is multiplied by c² = 1/n². Larger n, slower waves.</li>
-<li><b>Damping d</b> (1 = none, 0 = stops motion): multiplies the velocity term. Absorbers have d between 0 and 1, walls d = 0.</li>
+<li><b>Damping d</b> (1 = none, 0 = stops motion): multiplies the velocity term. Absorbers have d between 0 and 1; walls instead hold the field at u = 0, so they reflect completely.</li>
 </ul>
 <p>In a scene image, red = n × 100 (so 100 is empty space, 150 glass), blue = 255 × (1 − d), and green &gt; 0 marks a source whose level is the green value.</p>`,
         },

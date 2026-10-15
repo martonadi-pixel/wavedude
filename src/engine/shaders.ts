@@ -27,6 +27,8 @@ bool sourceValue(vec4 a, vec4 b, out float v) {
     if (since > 0.0) fade = 1.0 - since / DETACH_RAMP;
   }
   float omega = a.r, env = 1.0;
+  // continuous sources switch on smoothly over two periods: a sudden start leaves a slow wake behind
+  if (a.a < 1.5) { float tr = 4.0 * PI / max(omega, 1e-4); if (t < tr) env = 0.5 - 0.5 * cos(PI * t / tr); }
   if (a.a > 1.5) {
     float on = b.r, off = b.g, period = on + off;
     if (period > 0.0) {
@@ -39,7 +41,8 @@ bool sourceValue(vec4 a, vec4 b, out float v) {
         else {
           float sigma = max(on / 6.0, 1e-6);
           float dd = (pos - off - on / 2.0) / sigma;
-          env = exp(-0.5 * dd * dd);
+          // shifted so it starts and ends at exactly zero (a plain Gaussian cut at 3 sigma jumps by 1.1%)
+          env = max(0.0, (exp(-0.5 * dd * dd) - 0.011109) / (1.0 - 0.011109));
         }
       } else {
         float shifted = pos - off;
@@ -94,6 +97,9 @@ void main() {
         - uc;
   }
   float nv = uc + (uc - st.g) * pow(m.g, dPow) + lap * m.r * c2Scale;
+  // a wall (fully absorbing cell) holds the field at zero: it reflects every wave completely, whatever its thickness
+  // or frequency (as a damped cell it let ~10% through a 4-cell wall and swallowed a third)
+  if (m.a > 0.999) nv = 0.0;
   if (track < 0.5) { o = vec4(nv, uc, st.b, st.a); return; }
   // two cascaded one-pole filters of u^2 (WaveSimulator: _intensityStage1, _intensity)
   float s1 = st.b * alpha + nv * nv * (1.0 - alpha);

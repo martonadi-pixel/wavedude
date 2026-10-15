@@ -155,7 +155,8 @@ export class Circuit {
     if (s.bit === bit) return;
     s.bit = bit;
     for (const src of s.sources) src.enabled = bit === 1;
-    this.lastInputChange = this.sim.time;
+    // while the transistors still keep their starting state, the outputs can only follow once that time is over
+    this.lastInputChange = Math.max(this.sim.time, this.holdUntil);
     this.sim.refreshSources();
     this.drawLabels();
     this.fastForward();
@@ -169,7 +170,7 @@ export class Circuit {
     const sim = this.sim;
     if (this.settle <= 0) { sim.running = true; return; }
     if (!sim.prepareSpeed) sim.prepareSpeed = 12;
-    sim.runUntil(sim.time + this.settle, () => { sim.running = true; });
+    sim.runUntil(Math.max(sim.time, this.holdUntil) + this.settle, () => { sim.running = true; });
   }
 
   toggle(id: string): void { this.set(id, this.get(id).bit ? 0 : 1); }
@@ -177,7 +178,9 @@ export class Circuit {
   /** Switches an input on for this many steps (a "press" of a push button). */
   pulse(id: string, steps: number): void {
     this.set(id, 1);
-    this.get(id).offAt = this.sim.time + steps;
+    // a press made while the transistors still keep their starting state (a scene that has just opened, paused at
+    // step 0) lasts until they can react to it
+    this.get(id).offAt = Math.max(this.sim.time, this.holdUntil) + steps;
   }
 
   // ------------------------------------------------------------------------------------------ editing (sandbox)

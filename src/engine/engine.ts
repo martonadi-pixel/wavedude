@@ -53,13 +53,17 @@ const MAX_LINE_CELLS = 4096;
 
 interface Program { pr: WebGLProgram; u: Record<string, WebGLUniformLocation> }
 
+/** The engine settings experiments are written for (the Sandbox and projects may change them). */
+export const defaultSettings = (): EngineSettings =>
+  ({ stencil: "3x3", timeDecayFactor: 10, intensityScale: 1, imageSourceAmplitude: 1, frequencyScale: FREQUENCY_SCALE });
+
 export class WaveEngine {
   readonly gl: WebGL2RenderingContext;
   width = 0;
   height = 0;
   /** Steps done since the last reset. */
   time = 0;
-  settings: EngineSettings = { stencil: "3x3", timeDecayFactor: 10, intensityScale: 1, imageSourceAmplitude: 1, frequencyScale: FREQUENCY_SCALE };
+  settings: EngineSettings = defaultSettings();
 
   private stepP!: Program;
   private pointP!: Program;
